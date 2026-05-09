@@ -1,0 +1,45 @@
+Initial folder was created by: initialDirectoryAndFiles.bat
+requirements.txt was updated with tech. i was planning to use
+
+Command run:
+python --version -> o/p: Python 3.11.9
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -c "import fastapi, langchain, langgraph, boto3, pypdf, opensearchpy; print('OK')" o/p: OK
+npm install drizzle-orm pg
+npm install -D drizzle-kit tsx typescript @types/node
+
+--------------------------------------------------------------------------------------------------
+Remove old PG image
+-------------------
+C:\>docker rmi postgres:16
+Error response from daemon: conflict: unable to remove repository reference "postgres:16" (must force) - container d2d1a5a4f2e1 is using its referenced image 11ea9d908f28
+C:\>docker rm -f d2d1a5a4f2e1
+d2d1a5a4f2e1
+docker rmi postgres:16
+--------------------------------------------------------------------------------------------------
+1st working with DB schema
+--------------------------
+docker rm -f genai-postgres
+docker pull pgvector/pgvector:pg16
+docker run -d --name genai-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=vitechq -p 5432:5432 pgvector/pgvector:pg16
+docker exec -it genai-postgres psql -U postgres -d vitechq -> o/p: psql (16.13 (Debian 16.13-1.pgdg12+1))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

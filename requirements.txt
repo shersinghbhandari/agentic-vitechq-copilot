@@ -1,0 +1,44 @@
+# API
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+
+# Env / config
+python-dotenv
+pyyaml
+
+# AWS
+boto3
+botocore
+
+# RAG / Agentic
+langchain
+langchain-core
+langchain-community
+langchain-aws
+langgraph
+
+# Vector DB
+opensearch-py
+requests-aws4auth
+
+# Document parsing
+pypdf
+beautifulsoup4
+lxml
+
+# Database
+psycopg2-binary
+sqlalchemy
+
+# Observability / utils
+structlog
+tenacity
+tiktoken
+
+# Testing
+pytest
+pytest-asyncio
+httpx

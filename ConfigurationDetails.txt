@@ -1,0 +1,116 @@
+Design flow
+------------
+
+[Frontend UI]
+     |
+     v
+[FastAPI /documents/upload]
+     |
+     |-- saves file locally/S3
+     |-- inserts document row
+     |-- inserts ingestion_jobs row
+     |
+     v
+[Background Task: run_ingestion_job]
+     |
+     v
+[LangGraph: IngestionGraph]
+     |
+     +--> Node 1: VALIDATION
+     |        - update job_status = VALIDATING
+     |        - update document_status = PROCESSING
+     |
+     +--> Node 2: EXTRACTION
+     |        - read RawDocument
+     |        - extract text from PDF/DOCX/TXT
+     |        - update document_status = EXTRACTED
+     |
+     +--> Node 3: CHUNKING
+     |        - split text into chunks
+     |        - update job_status = CHUNKING
+     |        - update document_status = CHUNKED
+     |
+     +--> Node 4: EMBEDDING
+     |        - create vector embeddings
+     |        - update job_status = EMBEDDING
+     |        - update document_status = EMBEDDED
+     |
+     +--> Node 5: VECTOR_INDEX
+     |        - save chunks + embeddings
+     |        - update job_status = INDEXING
+     |        - update document_status = INDEXED
+     |
+     +--> Node 6: FINALIZATION
+              - update job_status = COMPLETED
+              - store completed_at
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Week 1: backend
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Project root:
+npm init -y
+npm install drizzle-orm pg dotenv
+npm install -D drizzle-kit tsx typescript @types/node @types/pg
+
+backned: 
+
+requirements.txt
+
+Drizzle configuration
+-----------------------
+.env file: DATABASE_URL=postgres://postgres:postgres@localhost:5432/vitechq
+drizzle/schema.ts
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Remove VM env
+Remove-Item -Recurse -Force .venv
+
+where python 
+python --version
+Get-Command python
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+Table	What It Represents	Why It Exists	Example
+documents	Master record of uploaded/imported document	Tracks source document lifecycle	claims_policy.pdf
+document_metadata	Searchable metadata key-value pairs for document	Filtering, RBAC, categorization	department=claims
+document_chunks	Chunked text + vector embeddings	Semantic/vector retrieval	Paragraph 12 from PDF
+ingestion_jobs	One ingestion execution/job	Monitoring + retries + status	PDF ingestion run
+ingestion_errors	Failure/error during ingestion	Debugging + recovery	OCR failed
+
+
+Root if not specified otherwise
+--------------------------------
+npm install dotenv
+npm run db:generate (create a migration file)
+npm run db:migrate (Will run the migration file)
+
+After data exists
+CREATE INDEX idx_chunks_embedding
+ON document_chunks
+USING hnsw (embedding vector_cosine_ops);
+
+
+Schema was defined... but now I want to create a Ui which will be used to load file quickly
+
+Now After schema I am creating a simple UI so that I can load diffefent files: Switching to backed folder
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+cd backend
+pip install -r requirements.txt
+
+UI command
+----------
+Start Server:
+uvicorn app.main:app --reload
+http://127.0.0.1:8000/documents/upload-ui
+Stop Server:
+Get-Process python | Stop-Process -Force
+
+

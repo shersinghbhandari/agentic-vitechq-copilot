@@ -1,0 +1,2 @@
+Creating some initial directory and files i need using:
+InitialDirectoryAndFiles.bat
