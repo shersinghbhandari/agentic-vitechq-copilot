@@ -1,7 +1,7 @@
 import os
 import re
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from typing import Optional
@@ -12,7 +12,7 @@ LOG_FILE = os.path.join(LOG_DIR, "vitechq-rag-trace.log")
 
 os.makedirs(LOG_DIR, exist_ok=True)
 
-
+#class for tracking all the log messages in strick format we want
 @dataclass
 class TraceContext:
     correlation_id: str
@@ -22,6 +22,14 @@ class TraceContext:
     document_id: Optional[str] = None
     job_id: Optional[str] = None
 
+    def with_request_name(
+            self,
+            request_name: str,
+    ) -> "TraceContext":
+        return replace(
+            self,
+            request_name=request_name,
+        )
 
 class TraceLogger:
 
@@ -70,11 +78,11 @@ class TraceLogger:
         formatted_message = (
             f"level={level}, "
             f"uploaded_by={TraceLogger._safe_value(ctx.uploaded_by)}, "
-            f"tenant_id={TraceLogger._safe_value(ctx.tenant_id)}, "
+            #f"tenant_id={TraceLogger._safe_value(ctx.tenant_id)}, "
             f"correlation_id={TraceLogger._safe_value(ctx.correlation_id)}, "
-            f"job_id={TraceLogger._safe_value(ctx.job_id)}, "
-            f"document_id={TraceLogger._safe_value(ctx.document_id)}, "
-            f"timestamp={timestamp}, "
+            #f"job_id={TraceLogger._safe_value(ctx.job_id)}, "
+            #f"document_id={TraceLogger._safe_value(ctx.document_id)}, "
+            #f"timestamp={timestamp}, "
             f"request_name={TraceLogger._safe_value(ctx.request_name)} : "
             f"{TraceLogger._safe_value(log_message)}"
         )
@@ -92,10 +100,8 @@ class TraceLogger:
     ):
         if not os.path.exists(LOG_FILE):
             return []
-
         with open(LOG_FILE, "r", encoding="utf-8") as file:
             lines = file.readlines()
-
         filters = {
             "uploaded_by": uploaded_by,
             "correlation_id": correlation_id,
@@ -103,23 +109,17 @@ class TraceLogger:
             "document_id": document_id,
             "level": level,
         }
-
         filtered = []
-
         for line in lines:
             matched = True
-
             for key, value in filters.items():
                 if value:
                     search_text = f"{key}={value}"
                     if search_text.lower() not in line.lower():
                         matched = False
                         break
-
             if matched:
                 filtered.append(line.strip())
-
         latest_lines = filtered[-max_lines:]
         latest_lines.reverse()
-
         return latest_lines

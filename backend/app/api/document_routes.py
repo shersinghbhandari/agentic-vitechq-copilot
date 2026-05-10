@@ -20,8 +20,12 @@ from app.rag.loaders.loader_factory import LoaderFactory
 from app.rag.ingestion.checksum_service import ChecksumService
 
 from app.rag.db.repositories.document_repository import DocumentRepository
-from app.rag.db.repositories.document_metadata_repository import DocumentMetadataRepository
-from app.rag.db.repositories.ingestion_job_repository import IngestionJobRepository
+from app.rag.db.repositories.document_metadata_repository import (
+    DocumentMetadataRepository,
+)
+from app.rag.db.repositories.ingestion_job_repository import (
+    IngestionJobRepository,
+)
 
 from app.rag.jobs.ingestion_worker import run_ingestion_job
 
@@ -154,6 +158,8 @@ async def upload_ui():
                     if (tab === "logs") {
                         document.getElementById("log_uploaded_by").value =
                             document.getElementById("uploaded_by").value;
+
+                        document.getElementById("log_uploaded_by").disabled = true;
                         loadLogs();
                     }
                 }
@@ -219,7 +225,8 @@ async def upload_ui():
                             lower.includes("failed") ||
                             lower.includes("failure") ||
                             lower.includes("exception") ||
-                            lower.includes("virus")
+                            lower.includes("virus detected") ||
+                            lower.includes("malware")
                         ) {
                             return "<div style='color:red; font-weight:bold;'>" + escapeHtml(line) + "</div>";
                         }
@@ -271,9 +278,7 @@ async def upload_document(
 
     try:
         validate_file_name(file.filename)
-
         file_extension = validate_file_extension(file.filename)
-
         await validate_file_size(file)
 
         TraceLogger.info(
@@ -357,7 +362,10 @@ async def upload_document(
             db=db,
             document_id=document.id,
             tenant_id=tenant_id,
+            uploaded_by=uploaded_by,
+            correlation_id=correlation_id,
             status="PENDING",
+            stage="UPLOAD",
         )
 
         trace_ctx.document_id = str(document.id)
@@ -374,6 +382,9 @@ async def upload_document(
             run_ingestion_job,
             document.id,
             job.id,
+            correlation_id,
+            uploaded_by,
+            tenant_id,
         )
 
         TraceLogger.info(

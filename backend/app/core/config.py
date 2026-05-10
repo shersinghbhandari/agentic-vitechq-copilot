@@ -3,10 +3,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "VitechQ"
-    RAW_UPLOAD_DIR: str = "data/raw"
+
+    # Virus related setting
     VIRUS_SCAN_ENABLED: bool = False
-    MAX_UPLOAD_SIZE_MB: int = "5"
     ENABLE_VIRUS_SCAN: bool = "false"
+
+    # File related setting
+    RAW_UPLOAD_DIR: str = "data/raw"
+
+    RAW_STAGING_TEMP_DIR: str = "data/stage"
+    RAW_STAGING_QUARANTINE_DIR: str = "data/stage/quarantine"
+    RAW_STAGING_APPROVED_DIR: str = "data/stage/approved"
+
+    MAX_UPLOAD_SIZE_MB: int = "5"
+
 
     DB_HOST: str
     DB_PORT: int

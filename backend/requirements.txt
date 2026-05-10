@@ -18,3 +18,5 @@ sentence-transformers==5.4.1
 
 pypdf
 openpyxl
+
+langchain-text-splitters

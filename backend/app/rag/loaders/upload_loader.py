@@ -13,14 +13,10 @@ class UploadDocumentLoader(BaseDocumentLoader):
 
     async def load(self, file: UploadFile) -> RawDocument:
         os.makedirs(settings.RAW_UPLOAD_DIR, exist_ok=True)
-
         file_path = os.path.join(settings.RAW_UPLOAD_DIR, file.filename)
-
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-
         file_extension = os.path.splitext(file.filename)[1].lower().replace(".", "")
-
         return RawDocument(
             file_name=file.filename,
             file_type=file_extension,
