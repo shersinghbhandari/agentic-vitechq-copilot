@@ -31,7 +31,7 @@ def run_ingestion_job(
             "Background ingestion worker started.",
         )
 
-        pipeline_service = IngestionPipelineService()
+        pipeline_service = IngestionPipelineService(db)
 
         pipeline_service.process(
             db=db,

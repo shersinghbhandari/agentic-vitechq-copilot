@@ -4,7 +4,7 @@ CREATE TABLE "document_chunks" (
 	"tenant_id" varchar(100) NOT NULL,
 	"chunk_index" integer NOT NULL,
 	"chunk_text" text NOT NULL,
-	"embedding" vector(384),
+	"embedding" vector(1536),
 	"metadata" jsonb DEFAULT '{}'::jsonb,
 	"created_at" timestamp with time zone DEFAULT now()
 );

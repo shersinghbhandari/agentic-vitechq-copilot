@@ -23,14 +23,16 @@ from app.core.trace_logger import TraceContext, TraceLogger
 
 class IngestionPipelineService:
 
-    def __init__(self):
+    def __init__(self, db):
+        self.db = db
+
         self.document_service = DocumentService()
         self.job_service = IngestionJobService()
 
         self.extraction_service = ExtractionService()
         self.chunking_service = ChunkingService()
         self.embedding_service = EmbeddingService()
-        self.vector_store_service = VectorStoreService()
+        self.vector_store_service = VectorStoreService(db)
 
         self.metadata_repository = DocumentMetadataRepository()
 

@@ -10,6 +10,6 @@ class BaseVectorStore(ABC):
     def add_documents(
         self,
         documents: List[LangChainDocument],
-        embeddings: List[list[float]],
+        embeddings: List[list[float]] | None = None,
     ) -> int:
         pass

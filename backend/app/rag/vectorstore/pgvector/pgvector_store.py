@@ -3,11 +3,21 @@ from typing import List
 from sqlalchemy.orm import Session
 from langchain_core.documents import Document as LangChainDocument
 
-from app.rag.models.document_models import DocumentChunk
+from app.rag.db.document_models import DocumentChunk
 from app.rag.vectorstore.base_vector_store import BaseVectorStore
 
 
 class PgVectorStore(BaseVectorStore):
+    """
+    Stores chunks into PostgreSQL document_chunks table.
+
+    If embeddings are provided:
+    - stores chunk_text + embedding
+
+    If embeddings are not provided:
+    - stores chunk_text only
+    - preserves old flow
+    """
 
     def __init__(self, db: Session):
         self.db = db
@@ -15,10 +25,10 @@ class PgVectorStore(BaseVectorStore):
     def add_documents(
         self,
         documents: List[LangChainDocument],
-        embeddings: List[list[float]],
+        embeddings: List[list[float]] | None = None,
     ) -> int:
 
-        if len(documents) != len(embeddings):
+        if embeddings is not None and len(documents) != len(embeddings):
             raise ValueError("Documents and embeddings count mismatch")
 
         saved_count = 0
@@ -31,7 +41,7 @@ class PgVectorStore(BaseVectorStore):
                 tenant_id=metadata["tenant_id"],
                 chunk_index=metadata.get("chunk_index", index),
                 chunk_text=document.page_content,
-                embedding=embeddings[index],
+                embedding=embeddings[index] if embeddings else None,
                 metadata_json=metadata,
             )
 

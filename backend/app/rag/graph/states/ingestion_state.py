@@ -3,11 +3,12 @@ from uuid import UUID
 
 from langchain_core.documents import Document as LangChainDocument
 
-#Shared LangGraph state
+#shared Langgraph state
 class IngestionState(TypedDict, total=False):
     tenant_id: str
     uploaded_by: str
     correlation_id: str
+    request_name: str
 
     document_id: UUID
     job_id: UUID
@@ -21,6 +22,7 @@ class IngestionState(TypedDict, total=False):
 
     langchain_documents: List[LangChainDocument]
     chunks: List[LangChainDocument]
+    embeddings: List[list[float]]
 
     total_chunks: int
     processed_chunks: int

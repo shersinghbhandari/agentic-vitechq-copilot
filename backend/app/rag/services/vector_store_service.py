@@ -1,15 +1,10 @@
-class VectorStoreService:
-    """
-    Placeholder for pgvector insert.
+from app.rag.db.document_models import DocumentChunk
 
-    Later this will save:
-    - document_id
-    - tenant_id
-    - chunk_text
-    - chunk_index
-    - embedding
-    - metadata
-    """
+
+class VectorStoreService:
+
+    def __init__(self, db):
+        self.db = db
 
     def save_vectors(
         self,
@@ -17,11 +12,24 @@ class VectorStoreService:
         tenant_id: str,
         chunks: list[str],
         embeddings: list[list[float]],
-    ) -> None:
+    ) -> int:
+
+        saved_count = 0
 
         for index, chunk in enumerate(chunks):
-            print(
-                f"Saving vector: document_id={document_id}, "
-                f"tenant_id={tenant_id}, chunk_index={index}, "
-                f"chunk_length={len(chunk)}"
+            embedding = embeddings[index] if embeddings else None
+
+            db_chunk = DocumentChunk(
+                document_id=document_id,
+                tenant_id=tenant_id,
+                chunk_index=index,
+                chunk_text=chunk,
+                embedding=embedding,
+                metadata_json={}
             )
+
+            self.db.add(db_chunk)
+            saved_count += 1
+
+        self.db.commit()
+        return saved_count

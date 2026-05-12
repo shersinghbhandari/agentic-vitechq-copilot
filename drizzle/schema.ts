@@ -146,7 +146,7 @@ export const documentChunks = pgTable(
     chunkText: text("chunk_text").notNull(),
 
     embedding: vector("embedding", {
-      dimensions: 384,
+      dimensions: 1536,
     }),
 
     metadata: jsonb("metadata").default({}),

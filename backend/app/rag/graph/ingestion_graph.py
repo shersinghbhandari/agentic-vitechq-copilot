@@ -32,13 +32,14 @@ class IngestionState(TypedDict):
 
 class IngestionGraph:
 
-    def __init__(self):
+    def __init__(self, db):
+        self.db = db
         self.document_service = DocumentService()
         self.job_service = IngestionJobService()
         self.extraction_service = ExtractionService()
         self.chunking_service = ChunkingService()
         self.embedding_service = EmbeddingService()
-        self.vector_store_service = VectorStoreService()
+        self.vector_store_service = VectorStoreService(db)
 
         self.graph = self._build_graph()
 

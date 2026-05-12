@@ -20,3 +20,4 @@ pypdf
 openpyxl
 
 langchain-text-splitters
+sentence-transformers

@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     MAX_UPLOAD_SIZE_MB: int = "5"
 
+    VECTOR_STORE_PROVIDER: str = "pgvector"
+    EMBEDDING_DIMENSIONS: int = 384
 
     DB_HOST: str
     DB_PORT: int

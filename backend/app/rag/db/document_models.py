@@ -93,7 +93,7 @@ class DocumentChunk(Base):
     chunk_index = Column(Integer, nullable=False)
     chunk_text = Column(Text, nullable=False)
 
-    embedding = Column(Vector(384), nullable=True)
+    embedding = Column(Vector(1536), nullable=True)
 
     metadata_json = Column(
         "metadata",

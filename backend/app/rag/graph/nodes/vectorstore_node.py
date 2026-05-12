@@ -1,33 +1,49 @@
 from sqlalchemy.orm import Session
 
+from app.core.trace_logger import TraceLogger
 from app.rag.graph.states.ingestion_state import IngestionState
-from app.rag.db.repositories.chunk_repository import ChunkRepository
+from app.rag.graph.tracing.trace_context_factory import build_trace_context
+from app.rag.vectorstore.vector_store_factory import VectorStoreFactory
 
-#Saves chunks
+
 class VectorStoreNode:
     """
-    For now this stores chunks without embeddings.
-    Embedding/vector insertion can be added next.
+    Backward-compatible vector store node.
+
+    Old flow:
+    - saves chunks without embeddings
+
+    New flow:
+    - saves chunks with embeddings when state["embeddings"] exists
     """
 
     def __init__(self, db: Session):
         self.db = db
-        self.chunk_repository = ChunkRepository()
 
     def __call__(self, state: IngestionState) -> IngestionState:
-        chunks = state["chunks"]
+        ctx = build_trace_context(state)
 
-        for chunk in chunks:
-            self.chunk_repository.create_chunk(
-                db=self.db,
-                document_id=state["document_id"],
-                tenant_id=state["tenant_id"],
-                chunk_index=chunk.metadata["chunk_index"],
-                chunk_text=chunk.page_content,
-                metadata_json=chunk.metadata,
-            )
+        chunks = state.get("chunks", [])
+        embeddings = state.get("embeddings")
 
-        state["processed_chunks"] = len(chunks)
-        state["stage"] = "VECTOR_STORE"
+        TraceLogger.info(
+            ctx,
+            f"Vector indexing started. chunks={len(chunks)}, has_embeddings={embeddings is not None}",
+        )
+
+        vector_store = VectorStoreFactory.get_vector_store(self.db)
+
+        indexed_count = vector_store.add_documents(
+            documents=chunks,
+            embeddings=embeddings,
+        )
+
+        state["processed_chunks"] = indexed_count
+        state["stage"] = "VECTOR_INDEX"
+
+        TraceLogger.info(
+            ctx,
+            f"Vector indexing completed. indexed_chunks={indexed_count}",
+        )
 
         return state
