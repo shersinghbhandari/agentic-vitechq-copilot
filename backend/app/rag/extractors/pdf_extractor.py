@@ -1,3 +1,7 @@
+# backend/app/rag/extractors/pdf_extractor.py
+
+from io import BytesIO
+
 from pypdf import PdfReader
 
 from app.rag.extractors.base_extractor import BaseExtractor
@@ -6,29 +10,91 @@ from app.rag.models.raw_document import RawDocument
 
 class PdfExtractor(BaseExtractor):
     """
-    Extracts text from normal text-based PDFs.
-    OCR fallback is not implemented yet.
+    PDF extractor.
+
+    Supports:
+    - byte-stream ingestion
+    - local filesystem fallback
+
+    Future:
+    - object-storage streaming
+    - OCR fallback pipeline
     """
 
-    def extract_text(self, raw_document: RawDocument) -> str:
-        text_parts = []
+    def extract_text(
+        self,
+        raw_document: RawDocument,
+    ) -> str:
 
-        reader = PdfReader(raw_document.local_path)
+        if not raw_document:
+            raise ValueError("raw_document is required")
 
-        for page_number, page in enumerate(reader.pages, start=1):
-            page_text = page.extract_text() or ""
+        pdf_source = self._build_pdf_source(raw_document)
 
-            if page_text.strip():
-                text_parts.append(
-                    f"\n\n--- Page {page_number} ---\n{page_text}"
+        try:
+
+            reader = PdfReader(pdf_source)
+
+            text_parts = []
+
+            for page_number, page in enumerate(
+                reader.pages,
+                start=1,
+            ):
+
+                page_text = page.extract_text() or ""
+
+                if page_text.strip():
+
+                    text_parts.append(
+                        f"\n\n--- Page {page_number} ---\n"
+                        f"{page_text.strip()}"
+                    )
+
+            extracted_text = "\n".join(text_parts).strip()
+
+            if not extracted_text:
+
+                raise ValueError(
+                    f"No text extracted from PDF: "
+                    f"{raw_document.file_name}. "
+                    "Scanned PDFs may require OCR pipeline."
                 )
 
-        extracted_text = "\n".join(text_parts).strip()
+            return extracted_text
 
-        if not extracted_text:
+        except Exception as ex:
+
             raise ValueError(
-                f"No text extracted from PDF: {raw_document.file_name}. "
-                "This may be a scanned PDF and may need OCR."
+                f"Failed to extract PDF file: "
+                f"{raw_document.file_name}. "
+                f"error={str(ex)}"
+            ) from ex
+
+    def _build_pdf_source(
+        self,
+        raw_document: RawDocument,
+    ):
+
+        # Preferred distributed-safe ingestion
+        if raw_document.content:
+
+            return BytesIO(raw_document.content)
+
+        # Local dev fallback
+        if raw_document.local_path:
+
+            return raw_document.local_path
+
+        # Future: object-storage streaming
+        if raw_document.storage_uri:
+
+            raise NotImplementedError(
+                "storage_uri PDF extraction "
+                "not implemented yet"
             )
 
-        return extracted_text
+        raise ValueError(
+            "PDF source missing. "
+            "content/local_path/storage_uri required."
+        )

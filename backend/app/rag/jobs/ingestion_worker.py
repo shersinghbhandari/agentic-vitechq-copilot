@@ -1,9 +1,6 @@
 from app.core.database import SessionLocal
 from app.core.trace_logger import TraceContext, TraceLogger
-
-from app.rag.services.ingestion_pipeline_service import (
-    IngestionPipelineService,
-)
+from app.rag.graph.ingestion_graph import IngestionGraph
 
 
 def run_ingestion_job(
@@ -31,13 +28,19 @@ def run_ingestion_job(
             "Background ingestion worker started.",
         )
 
-        pipeline_service = IngestionPipelineService(db)
+        # flow without langgraph
+        #pipeline_service = IngestionPipelineService(db)
+        #pipeline_service.process(db=db, document_id=document_id, job_id=job_id, correlation_id=correlation_id, )
 
-        pipeline_service.process(
+
+        ingestion_graph = IngestionGraph(db)
+        ingestion_graph.run(
             db=db,
             document_id=document_id,
             job_id=job_id,
             correlation_id=correlation_id,
+            uploaded_by=uploaded_by,
+            tenant_id=tenant_id,
         )
 
         TraceLogger.info(
@@ -46,12 +49,10 @@ def run_ingestion_job(
         )
 
     except Exception as ex:
-
         TraceLogger.error(
             trace_ctx,
             f"Background ingestion worker failed. error={str(ex)}",
         )
-
         raise
 
     finally:

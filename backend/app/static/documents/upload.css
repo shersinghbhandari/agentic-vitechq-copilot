@@ -1,0 +1,76 @@
+body {
+    font-family: Arial;
+    margin: 30px;
+    background: #f7f7f7;
+}
+
+.container {
+    display: flex;
+    gap: 20px;
+}
+
+.left,
+.right {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 8px #ddd;
+}
+
+.left {
+    width: 35%;
+}
+
+.right {
+    width: 60%;
+}
+
+input,
+select {
+    padding: 6px;
+    margin-top: 4px;
+}
+
+button {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.tabs button {
+    margin-right: 5px;
+}
+
+.tab-content {
+    margin-top: 15px;
+    background: #111;
+    color: #0f0;
+    padding: 15px;
+    height: 420px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+}
+
+.success {
+    color: green;
+    font-weight: bold;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+}
+
+.log-filter {
+    background: #f2f2f2;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.log-filter input {
+    width: 180px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}

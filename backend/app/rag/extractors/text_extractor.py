@@ -3,7 +3,53 @@ from app.rag.models.raw_document import RawDocument
 
 
 class TextExtractor(BaseExtractor):
+    """
+    Plain text extractor.
 
-    def extract_text(self, raw_document: RawDocument) -> str:
-        with open(raw_document.local_path, "r", encoding="utf-8") as file:
-            return file.read()
+    Supports:
+    - byte-stream ingestion
+    - local filesystem fallback
+
+    Future:
+    - object-storage streaming
+    """
+
+    def extract_text(
+        self,
+        raw_document: RawDocument,
+    ) -> str:
+
+        if not raw_document:
+            raise ValueError("raw_document is required")
+
+        # Preferred distributed-safe extraction
+        if raw_document.content:
+
+            return raw_document.content.decode(
+                "utf-8",
+                errors="ignore",
+            ).strip()
+
+        # Local dev fallback
+        if raw_document.local_path:
+
+            with open(
+                raw_document.local_path,
+                "r",
+                encoding="utf-8",
+                errors="ignore",
+            ) as file:
+
+                return file.read().strip()
+
+        # Future: object-storage streaming
+        if raw_document.storage_uri:
+
+            raise NotImplementedError(
+                "storage_uri extraction not implemented yet"
+            )
+
+        raise ValueError(
+            f"No content available for file: "
+            f"{raw_document.file_name}"
+        )

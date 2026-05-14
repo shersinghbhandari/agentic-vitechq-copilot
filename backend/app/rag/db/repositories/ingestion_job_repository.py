@@ -24,8 +24,10 @@ class IngestionJobRepository:
             status=status,
             stage=stage,
         )
-
         db.add(job)
+        # flush gets DB-generated values immediately
+        # without committing transaction
         db.flush()
-
+        # optional but safer when UUID/default values
+        db.refresh(job)
         return job

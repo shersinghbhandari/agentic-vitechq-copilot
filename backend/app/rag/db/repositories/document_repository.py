@@ -44,4 +44,6 @@ class DocumentRepository:
 
         db.add(document)
         db.flush()
+        # optional but safer when UUID/default values
+        db.refresh(document)
         return document

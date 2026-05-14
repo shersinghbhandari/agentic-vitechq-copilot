@@ -32,7 +32,7 @@ class IngestionJobService:
         )
 
         db.add(job)
-        db.commit()
+        db.flush()
         db.refresh(job)
 
         return job
@@ -46,12 +46,7 @@ class IngestionJobService:
         error_message: str | None = None,
     ) -> IngestionJob:
 
-        job = db.query(IngestionJob).filter(
-            IngestionJob.id == job_id
-        ).first()
-
-        if not job:
-            raise ValueError(f"Ingestion job not found: {job_id}")
+        job = self._get_job_or_raise(db, job_id)
 
         job.status = status.value
 
@@ -60,14 +55,13 @@ class IngestionJobService:
 
         job.error_message = error_message
 
+        if status in (JobStatus.FAILED, JobStatus.COMPLETED):
+            job.completed_at = datetime.now(timezone.utc)
+
         if status == JobStatus.FAILED:
             job.error_count = (job.error_count or 0) + 1
-            job.completed_at = datetime.now(timezone.utc)
 
-        if status == JobStatus.COMPLETED:
-            job.completed_at = datetime.now(timezone.utc)
-
-        db.commit()
+        db.flush()
         db.refresh(job)
 
         return job
@@ -80,22 +74,33 @@ class IngestionJobService:
         processed_chunks: int,
     ) -> IngestionJob:
 
-        job = db.query(IngestionJob).filter(
-            IngestionJob.id == job_id
-        ).first()
-
-        if not job:
-            raise ValueError(f"Ingestion job not found: {job_id}")
+        job = self._get_job_or_raise(db, job_id)
 
         job.total_chunks = total_chunks
         job.processed_chunks = processed_chunks
 
-        db.commit()
+        db.flush()
         db.refresh(job)
 
         return job
 
     def increment_retry(
+        self,
+        db: Session,
+        job_id,
+    ) -> IngestionJob:
+
+        job = self._get_job_or_raise(db, job_id)
+
+        job.retry_count = (job.retry_count or 0) + 1
+        job.status = JobStatus.RETRYING.value
+
+        db.flush()
+        db.refresh(job)
+
+        return job
+
+    def _get_job_or_raise(
         self,
         db: Session,
         job_id,
@@ -107,11 +112,5 @@ class IngestionJobService:
 
         if not job:
             raise ValueError(f"Ingestion job not found: {job_id}")
-
-        job.retry_count = (job.retry_count or 0) + 1
-        job.status = JobStatus.RETRYING.value
-
-        db.commit()
-        db.refresh(job)
 
         return job

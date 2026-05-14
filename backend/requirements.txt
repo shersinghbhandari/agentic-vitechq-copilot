@@ -19,5 +19,14 @@ sentence-transformers==5.4.1
 pypdf
 openpyxl
 
-langchain-text-splitters
 sentence-transformers
+jinja2
+python-multipart
+
+langchain-text-splitters
+langchain
+langchain-core
+langgraph
+langchain-openai
+langchain-anthropic
+langchain-aws

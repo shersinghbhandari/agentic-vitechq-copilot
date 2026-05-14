@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VitechQ RAG Upload</title>
+    <link rel="stylesheet" href="/static/documents/upload.css">
+</head>
+
+<body>
+    <h2>VitechQ RAG - Document Upload</h2>
+
+    <div class="container">
+        <div class="left">
+            <form id="uploadForm">
+                <label>Tenant ID:</label><br>
+                <input name="tenant_id" id="tenant_id" type="text" value="{{ default_tenant }}" required>
+                <br><br>
+
+                <label>User Name:</label><br>
+                <input name="uploaded_by" id="uploaded_by" type="text" value="{{ default_user }}" required>
+                <br><br>
+
+                <label>Select File:</label><br>
+                <input name="file" type="file" required>
+                <br><br>
+
+                <button type="submit">Upload</button>
+            </form>
+
+            <p><b>Supported:</b> PDF, TXT, Java, SQL, Images, Excel, CSV, DOCX</p>
+        </div>
+
+        <div class="right">
+            <div class="tabs">
+                <button onclick="showTab('result')">Upload Result</button>
+                <button onclick="showTab('logs')">User Logs</button>
+            </div>
+
+            <div id="resultTab" class="tab-content">
+                Upload result will appear here.
+            </div>
+
+            <div id="logsContainer" style="display:none;">
+                <div class="log-filter">
+                    <input id="log_uploaded_by" placeholder="Search username">
+                    <input id="log_correlation_id" placeholder="Correlation ID">
+                    <input id="log_job_id" placeholder="Job ID">
+                    <input id="log_document_id" placeholder="Document ID">
+
+                    <select id="log_level">
+                        <option value="">All Levels</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+
+                    <button onclick="loadLogs()">Search Logs</button>
+                </div>
+
+                <div id="logsTab" class="tab-content">
+                    Logs will appear here.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/documents/upload.js"></script>
+</body>
+</html>
