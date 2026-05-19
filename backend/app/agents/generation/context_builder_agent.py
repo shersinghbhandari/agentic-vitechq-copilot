@@ -1,22 +1,17 @@
+# backend/app/agents/generation/context_builder_agent.py
+
 from app.agents.core.agent_context import AgentContext
+from app.agents.core.base_agent import BaseAgent
 
 
-class ContextBuilderAgent:
+class ContextBuilderAgent(BaseAgent):
+    name = "ContextBuilderAgent"
 
-    def build(self, context: AgentContext) -> AgentContext:
+    def run(self, context: AgentContext) -> AgentContext:
         if not context.retrieved_context:
-            context.integrated_context = None
-            return context
+            context.grounded_context = ""
+        else:
+            context.grounded_context = "\n\n".join(context.retrieved_context)
 
-        parts = []
-
-        for item in context.retrieved_context:
-            parts.append(
-                f"[Document: {item['file_name']} | "
-                f"Chunk: {item['chunk_index']}]\n"
-                f"{item['chunk_text']}"
-            )
-
-        context.integrated_context = "\n\n---\n\n".join(parts)
-
+        self.trace(context, "Grounded context built.")
         return context

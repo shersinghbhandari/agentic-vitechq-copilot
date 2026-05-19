@@ -1,46 +1,63 @@
+# backend/app/agents/generation/answer_generator_agent.py
+
+from langchain_core.prompts import ChatPromptTemplate
+
 from app.agents.core.agent_context import AgentContext
+from app.agents.core.base_agent import BaseAgent
+from app.agents.core.llm_factory import LlmFactory
 
 
-class AnswerGeneratorAgent:
+class AnswerGeneratorAgent(BaseAgent):
+    name = "AnswerGeneratorAgent"
 
-    def generate(self, context: AgentContext) -> AgentContext:
-        if not context.integrated_context:
-            context.answer = (
-                "I could not find relevant information in the indexed RAG data "
-                "for this query."
-            )
-            context.citations = []
-            return context
+    def __init__(self):
+        self.llm = LlmFactory.create_chat_model()
 
-        answer_parts = [
-            "Based on the indexed RAG content, here is the relevant information:"
-        ]
+    def run(self, context: AgentContext) -> AgentContext:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """
+You are an enterprise AI assistant.
 
-        citations = []
+Rules:
+- Use grounded context when available.
+- Do not invent facts.
+- If context is missing, clearly say what is missing.
+- Keep answer architect-level but concise.
+""",
+                ),
+                (
+                    "human",
+                    """
+User Query:
+{query}
 
-        for index, item in enumerate(context.retrieved_context, start=1):
-            chunk_text = item["chunk_text"]
+Refined Query:
+{refined_query}
 
-            trimmed_text = (
-                chunk_text[:700] + "..."
-                if len(chunk_text) > 700
-                else chunk_text
-            )
+Grounded Context:
+{grounded_context}
 
-            answer_parts.append(
-                f"\n[{index}] {trimmed_text}"
-            )
+Conversation History:
+{conversation_history}
+""",
+                ),
+            ]
+        )
 
-            citations.append(
-                {
-                    "document_id": item["document_id"],
-                    "chunk_id": item["chunk_id"],
-                    "chunk_index": item["chunk_index"],
-                    "file_name": item["file_name"],
-                }
-            )
+        chain = prompt | self.llm
 
-        context.answer = "\n".join(answer_parts)
-        context.citations = citations
+        response = chain.invoke(
+            {
+                "query": context.query,
+                "refined_query": context.refined_query,
+                "grounded_context": context.grounded_context or "",
+                "conversation_history": context.conversation_history,
+            }
+        )
 
+        context.answer = response.content
+        self.trace(context, "Answer generated.")
         return context

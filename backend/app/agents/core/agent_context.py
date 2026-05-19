@@ -1,26 +1,40 @@
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+# backend/app/agents/core/agent_context.py
+
+from typing import Any
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class AgentContext:
+class AgentContext(BaseModel):
     query: str
-    tenant_id: str
-    uploaded_by: Optional[str]
+
+    tenant_id: str = "default_tenant"
+    uploaded_by: str = "anonymous"
     correlation_id: str
 
-    refined_query: Optional[str] = None
-    intent: Optional[str] = None
-    selected_source: Optional[str] = None
+    conversation_history: list[dict[str, str]] = Field(default_factory=list)
+    user_context: dict[str, Any] = Field(default_factory=dict)
+    metadata_context: dict[str, Any] = Field(default_factory=dict)
 
-    keywords: List[str] = field(default_factory=list)
-    missing_information: List[str] = field(default_factory=list)
+    refined_query: str | None = None
+    intent: str | None = None
+    domain: str | None = None
 
-    retrieved_context: List[Dict[str, Any]] = field(default_factory=list)
-    integrated_context: Optional[str] = None
+    keywords: list[str] = Field(default_factory=list)
+    entities: list[str] = Field(default_factory=list)
 
-    answer: Optional[str] = None
-    citations: List[Dict[str, Any]] = field(default_factory=list)
+    selected_source: str | None = None
+    retrieval_required: bool = True
+    retrieval_strategy: str = "HYBRID"
+    metadata_filters: dict[str, Any] = Field(default_factory=dict)
 
+    retrieved_context: list[str] = Field(default_factory=list)
+    grounded_context: str | None = None
+
+    answer: str | None = None
     validation_status: str = "NOT_VALIDATED"
-    validation_message: Optional[str] = None
+    validation_errors: list[str] = Field(default_factory=list)
+
+    trace: list[str] = Field(default_factory=list)
+
+    def add_trace(self, message: str) -> None:
+        self.trace.append(message)

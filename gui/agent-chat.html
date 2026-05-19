@@ -31,13 +31,15 @@
         }
 
         input,
-        textarea {
+        textarea,
+        select {
             width: 100%;
             padding: 10px;
             margin-top: 6px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
             font-size: 14px;
+            box-sizing: border-box;
         }
 
         textarea {
@@ -71,13 +73,35 @@
             margin-top: 16px;
             font-size: 13px;
             color: #374151;
+            line-height: 1.7;
         }
 
-        .citation {
-            padding: 8px;
-            margin-top: 8px;
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            margin: 2px;
             background: #eef2ff;
-            border-radius: 6px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .section {
+            margin-top: 18px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .section h3 {
+            margin-top: 0;
+        }
+
+        pre {
+            background: #111827;
+            color: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
             font-size: 13px;
         }
     </style>
@@ -93,8 +117,15 @@
     <label for="uploadedBy">Uploaded By</label>
     <input id="uploadedBy" value="sher"/>
 
-    <label for="query">Ask your RAG system</label>
-    <textarea id="query" placeholder="Example: What does the uploaded document say about claims eligibility?"></textarea>
+    <label for="responseStyle">Response Style</label>
+    <select id="responseStyle">
+        <option value="ARCHITECT_LEVEL" selected>ARCHITECT_LEVEL</option>
+        <option value="CONCISE">CONCISE</option>
+        <option value="DETAILED">DETAILED</option>
+    </select>
+
+    <label for="query">Ask your RAG / Agentic system</label>
+    <textarea id="query" placeholder="Example: Explain design patterns used in microservices"></textarea>
 
     <button onclick="askAgent()">Ask Agent</button>
 
@@ -102,19 +133,35 @@
 </div>
 
 <script>
+    const API_BASE_URL = "http://127.0.0.1:8000";
+
     async function askAgent() {
         const resultDiv = document.getElementById("result");
+        const query = document.getElementById("query").value.trim();
+
+        if (!query) {
+            resultDiv.innerHTML = `
+                <div class="answer error">
+                    Please enter a question.
+                </div>
+            `;
+            return;
+        }
 
         const payload = {
-            tenant_id: document.getElementById("tenantId").value,
-            uploaded_by: document.getElementById("uploadedBy").value,
-            query: document.getElementById("query").value
+            tenant_id: document.getElementById("tenantId").value || "default_tenant",
+            uploaded_by: document.getElementById("uploadedBy").value || "anonymous",
+            query: query,
+            response_style: document.getElementById("responseStyle").value,
+            conversation_history: [],
+            user_context: {},
+            metadata_context: {}
         };
 
         resultDiv.innerHTML = "<div class='answer'>Processing agent workflow...</div>";
 
         try {
-            const response = await fetch("http://127.0.0.1:8000/agent/chat", {
+            const response = await fetch(`${API_BASE_URL}/agent/chat`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -122,39 +169,44 @@
                 body: JSON.stringify(payload)
             });
 
+            const data = await response.json().catch(() => ({}));
+
             if (!response.ok) {
-                throw new Error("Agent API failed with status " + response.status);
+                throw new Error(data.detail || data.error || "Agent API failed with status " + response.status);
             }
 
-            const data = await response.json();
-
             let html = `
-                <div class="answer">${escapeHtml(data.answer)}</div>
+                <div class="answer">
+                    ${escapeHtml(data.answer || data.final_answer || "No answer returned.")}
+                </div>
 
                 <div class="meta">
+                    <b>Correlation ID:</b> ${escapeHtml(data.correlation_id || "-")}<br/>
                     <b>Refined Query:</b> ${escapeHtml(data.refined_query || "-")}<br/>
-                    <b>Selected Source:</b> ${escapeHtml(data.selected_source || "-")}<br/>
-                    <b>Validation:</b> ${escapeHtml(data.validation_status)}<br/>
-                    <b>Validation Message:</b> ${escapeHtml(data.validation_message || "-")}<br/>
-                    <b>Retrieved Context Count:</b> ${data.retrieved_context_count}<br/>
-                    <b>Correlation ID:</b> ${escapeHtml(data.correlation_id)}
+                    <b>Intent:</b> ${escapeHtml(data.intent || "-")}<br/>
+                    <b>Domain:</b> ${escapeHtml(data.domain || "-")}<br/>
+                    <b>Retrieval Required:</b> ${escapeHtml(data.retrieval_required ?? "-")}<br/>
+                    <b>Retrieval Strategy:</b> ${escapeHtml(data.retrieval_strategy || "-")}<br/>
+                    <b>Needs Clarification:</b> ${escapeHtml(data.needs_clarification ?? "-")}<br/>
+                    <b>Clarification Question:</b> ${escapeHtml(data.clarification_question || "-")}<br/>
+                    <b>Analyzer Source:</b> ${escapeHtml(data.analyzer_source || "-")}<br/>
+                    <b>Confidence Score:</b> ${escapeHtml(data.confidence_score ?? "-")}
                 </div>
             `;
 
-            if (data.citations && data.citations.length > 0) {
-                html += "<h3>Citations</h3>";
+            html += renderPills("Keywords", data.keywords);
+            html += renderPills("Entities", data.entities);
+            html += renderObject("Metadata Filters", data.metadata_filters);
+            html += renderObject("User Context", data.user_context);
+            html += renderObject("Metadata Context", data.metadata_context);
+            html += renderList("Errors", data.errors);
 
-                data.citations.forEach((citation, index) => {
-                    html += `
-                        <div class="citation">
-                            <b>${index + 1}.</b>
-                            File: ${escapeHtml(citation.file_name || "-")} |
-                            Document ID: ${escapeHtml(citation.document_id)} |
-                            Chunk ID: ${escapeHtml(citation.chunk_id)} |
-                            Chunk Index: ${citation.chunk_index}
-                        </div>
-                    `;
-                });
+            if (data.retrieved_context && data.retrieved_context.length > 0) {
+                html += renderRetrievedContext(data.retrieved_context);
+            }
+
+            if (data.citations && data.citations.length > 0) {
+                html += renderCitations(data.citations);
             }
 
             resultDiv.innerHTML = html;
@@ -166,6 +218,93 @@
                 </div>
             `;
         }
+    }
+
+    function renderPills(title, values) {
+        if (!values || values.length === 0) {
+            return "";
+        }
+
+        const pills = values
+            .map(value => `<span class="pill">${escapeHtml(value)}</span>`)
+            .join("");
+
+        return `
+            <div class="section">
+                <h3>${escapeHtml(title)}</h3>
+                ${pills}
+            </div>
+        `;
+    }
+
+    function renderObject(title, value) {
+        if (!value || Object.keys(value).length === 0) {
+            return "";
+        }
+
+        return `
+            <div class="section">
+                <h3>${escapeHtml(title)}</h3>
+                <pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>
+            </div>
+        `;
+    }
+
+    function renderList(title, values) {
+        if (!values || values.length === 0) {
+            return "";
+        }
+
+        return `
+            <div class="section">
+                <h3>${escapeHtml(title)}</h3>
+                <ul>
+                    ${values.map(value => `<li>${escapeHtml(value)}</li>`).join("")}
+                </ul>
+            </div>
+        `;
+    }
+
+    function renderRetrievedContext(contextItems) {
+        let html = `
+            <div class="section">
+                <h3>Retrieved Context</h3>
+        `;
+
+        contextItems.forEach((item, index) => {
+            html += `
+                <div class="citation">
+                    <b>${index + 1}.</b>
+                    ${escapeHtml(item.file_name || item.document_name || "Unknown source")}
+                    <pre>${escapeHtml(JSON.stringify(item, null, 2))}</pre>
+                </div>
+            `;
+        });
+
+        html += "</div>";
+        return html;
+    }
+
+    function renderCitations(citations) {
+        let html = `
+            <div class="section">
+                <h3>Citations</h3>
+        `;
+
+        citations.forEach((citation, index) => {
+            html += `
+                <div class="citation">
+                    <b>${index + 1}.</b>
+                    File: ${escapeHtml(citation.file_name || "-")} |
+                    Document ID: ${escapeHtml(citation.document_id || "-")} |
+                    Chunk ID: ${escapeHtml(citation.chunk_id || "-")} |
+                    Chunk Index: ${escapeHtml(citation.chunk_index ?? "-")}
+                </div>
+            `;
+        });
+
+        html += "</div>";
+        return html;
     }
 
     function escapeHtml(value) {
