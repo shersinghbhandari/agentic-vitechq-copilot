@@ -5,6 +5,41 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class MemorySnapshot(BaseModel):
+    """
+    Lightweight conversational memory snapshot.
+
+    Architectural Purpose
+    ---------------------
+    Captures memory-related orchestration state
+    returned to clients for debugging, replay,
+    and future persistent memory systems.
+
+    Future Direction
+    ----------------
+    Can evolve into:
+        - episodic memory
+        - semantic memory
+        - vector memory integration
+        - long-running session persistence
+    """
+
+    # Recent conversational state.
+    conversation_history: list[dict[str, str]] = Field(
+        default_factory=list
+    )
+
+    # User personalization context.
+    user_context: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+    # Request-scoped metadata context.
+    metadata_context: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+
 class ChatRequest(BaseModel):
     """
     External API request contract for agent chat.
@@ -21,19 +56,25 @@ class ChatRequest(BaseModel):
 
     2. Context extensibility
        - Supports memory, personalization,
-         and future agent coordination.
+         and future multi-agent coordination.
 
-    3. Multi-tenant ready
-       - Tenant-aware orchestration support.
+    3. Role-aware orchestration
+       - Allows dynamic persona specialization.
     """
 
+    # Original raw user query.
     query: str
 
+    # Multi-tenant orchestration metadata.
     tenant_id: str = "default_tenant"
+
     uploaded_by: str = "anonymous"
 
     # Generated if caller does not provide one.
     correlation_id: str | None = None
+
+    # User-selected role/persona.
+    role: str = "generic"
 
     # Conversational memory input.
     conversation_history: list[dict[str, str]] = Field(
@@ -46,38 +87,6 @@ class ChatRequest(BaseModel):
     )
 
     # Request-scoped metadata context.
-    metadata_context: dict[str, Any] = Field(
-        default_factory=dict
-    )
-
-
-class MemorySnapshot(BaseModel):
-    """
-    Lightweight conversational memory snapshot.
-
-    Architectural Purpose
-    ---------------------
-    Captures memory-related orchestration state
-    returned to clients for debugging, replay,
-    and future persistent memory systems.
-
-    Future Direction
-    ----------------
-    Can evolve into:
-        - episodic memory
-        - semantic memory
-        - session persistence
-        - vector memory integration
-    """
-
-    conversation_history: list[dict[str, str]] = Field(
-        default_factory=list
-    )
-
-    user_context: dict[str, Any] = Field(
-        default_factory=dict
-    )
-
     metadata_context: dict[str, Any] = Field(
         default_factory=dict
     )
@@ -104,9 +113,12 @@ class ChatResponse(BaseModel):
     2. Retrieval transparency
        - Retrieval decisions and grounding exposed.
 
-    3. Future extensible
+    3. Role-aware generation
+       - Final resolved role returned to clients.
+
+    4. Future extensible
        - Supports citations, confidence scoring,
-         memory systems, and evaluation metadata.
+         evaluation metadata, and tool traces.
     """
 
     # Final generated response.
@@ -115,18 +127,27 @@ class ChatResponse(BaseModel):
     # Distributed tracing identifier.
     correlation_id: str
 
+    # User-selected role/persona.
+    role: str = "generic"
+
+    # Runtime resolved role from orchestration.
+    resolved_role: str | None = None
+
     # Query analysis output.
     refined_query: str | None = None
+
     intent: str | None = None
     domain: str | None = None
 
     keywords: list[str] = Field(default_factory=list)
+
     entities: list[str] = Field(default_factory=list)
 
     # Retrieval routing metadata.
     selected_source: str | None = None
 
     retrieval_required: bool = True
+
     retrieval_strategy: str = "HYBRID"
 
     # Retrieval observability.
@@ -140,7 +161,7 @@ class ChatResponse(BaseModel):
     # Final engineered prompt context.
     grounded_context: str | None = None
 
-    # Validation state.
+    # Validation workflow state.
     validation_status: str = "NOT_VALIDATED"
 
     validation_errors: list[str] = Field(
@@ -152,15 +173,15 @@ class ChatResponse(BaseModel):
         default_factory=dict
     )
 
-    # Context engineering decisions.
+    # Context engineering observability metadata.
     context_engineering_metadata: dict[str, Any] = Field(
         default_factory=dict
     )
 
-    # Memory and conversational snapshot.
+    # Lightweight conversational memory snapshot.
     memory_snapshot: MemorySnapshot = Field(
         default_factory=MemorySnapshot
     )
 
-    # Lightweight orchestration trace.
+    # Lightweight orchestration execution trace.
     trace: list[str] = Field(default_factory=list)

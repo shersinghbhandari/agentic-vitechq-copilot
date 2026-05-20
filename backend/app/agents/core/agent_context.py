@@ -24,23 +24,44 @@ class AgentContext(BaseModel):
        - Agents communicate through shared state only.
 
     3. Observability first
-       - Trace, token usage, validation, and context decisions tracked.
+       - Trace, token usage, validation,
+         and context decisions tracked.
 
     4. Future extensible
-       - Supports memory, tools, multi-agent routing,
-         citations, evaluation, and autonomous workflows.
+       - Supports memory, tools, citations,
+         evaluation, and autonomous workflows.
     """
 
+    # Original raw user query.
     query: str
 
+    # Multi-tenant orchestration metadata.
     tenant_id: str = "default_tenant"
     uploaded_by: str = "anonymous"
+
+    # Distributed trace correlation ID.
     correlation_id: str
 
-    # Context engineering inputs.
-    conversation_history: list[dict[str, str]] = Field(default_factory=list)
-    user_context: dict[str, Any] = Field(default_factory=dict)
-    metadata_context: dict[str, Any] = Field(default_factory=dict)
+    # User-selected role/persona.
+    role: str = "generic"
+
+    # Runtime resolved role from orchestration logic.
+    resolved_role: str | None = None
+
+    # Conversational memory input.
+    conversation_history: list[dict[str, str]] = Field(
+        default_factory=list
+    )
+
+    # User personalization context.
+    user_context: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+    # Request-scoped metadata context.
+    metadata_context: dict[str, Any] = Field(
+        default_factory=dict
+    )
 
     # Query analysis output.
     refined_query: str | None = None
@@ -52,38 +73,49 @@ class AgentContext(BaseModel):
 
     # Retrieval routing state.
     selected_source: str | None = None
+
     retrieval_required: bool = True
     retrieval_strategy: str = "HYBRID"
 
-    metadata_filters: dict[str, Any] = Field(default_factory=dict)
+    metadata_filters: dict[str, Any] = Field(
+        default_factory=dict
+    )
 
     # Raw retrieval output.
-    retrieved_context: list[str] = Field(default_factory=list)
+    retrieved_context: list[str] = Field(
+        default_factory=list
+    )
 
-    # Prompt-ready grounded context.
+    # Final engineered prompt context.
     grounded_context: str | None = None
 
-    # Context engineering observability.
+    # Context engineering observability metadata.
     context_engineering_metadata: dict[str, Any] = Field(
         default_factory=dict
     )
 
-    # Final generated response.
+    # Final generated answer.
     answer: str | None = None
 
-    # Validation state.
+    # Validation workflow state.
     validation_status: str = "NOT_VALIDATED"
-    validation_errors: list[str] = Field(default_factory=list)
 
-    # Agent-level token and cost tracking.
+    validation_errors: list[str] = Field(
+        default_factory=list
+    )
+
+    # Agent-level token and cost observability.
     token_usage: dict[str, dict[str, int]] = Field(
         default_factory=dict
     )
 
-    # Lightweight execution trace.
+    # Lightweight orchestration execution trace.
     trace: list[str] = Field(default_factory=list)
 
-    def add_trace(self, message: str) -> None:
+    def add_trace(
+        self,
+        message: str,
+    ) -> None:
         """
         Append orchestration trace message.
 
@@ -92,4 +124,5 @@ class AgentContext(BaseModel):
         Can evolve into structured trace events
         integrated with OpenTelemetry.
         """
+
         self.trace.append(message)

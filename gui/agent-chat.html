@@ -9,10 +9,11 @@
     <style>
         /*
             Architectural Purpose:
-            Lightweight local observability console for agentic chat workflow.
+            Lightweight observability console for
+            agentic orchestration workflows.
 
             Design Principle:
-            Keep this UI dependency-free for fast local debugging.
+            Keep UI dependency-free for fast local debugging.
         */
 
         body {
@@ -41,7 +42,8 @@
         }
 
         textarea,
-        input {
+        input,
+        select {
             width: 100%;
             box-sizing: border-box;
             padding: 10px;
@@ -64,10 +66,15 @@
             background: #2563eb;
             color: white;
             font-weight: bold;
+            margin-right: 6px;
         }
 
         button.secondary {
             background: #4b5563;
+        }
+
+        button.danger {
+            background: #b91c1c;
         }
 
         .tabs {
@@ -155,6 +162,7 @@
 </head>
 
 <body>
+
 <header>
     <h2>Agentic Chat - LangChain + LangGraph</h2>
 </header>
@@ -162,14 +170,50 @@
 <div class="container">
 
     <div class="panel">
+
         <label>Tenant ID</label>
         <input id="tenantId" value="default_tenant">
 
         <label>Uploaded By</label>
         <input id="uploadedBy" value="sher">
 
+        <label>Role</label>
+
+        <!--
+            Architectural Purpose:
+            Allows explicit persona specialization.
+
+            generic:
+                runtime role inferred by QueryAnalyzerAgent.
+        -->
+        <select id="role">
+            <option value="generic">
+                Generic - infer at runtime
+            </option>
+
+            <option value="developer">
+                Developer
+            </option>
+
+            <option value="performance">
+                Performance
+            </option>
+
+            <option value="analyst">
+                Analyst
+            </option>
+
+            <option value="architect">
+                Architect
+            </option>
+        </select>
+
         <label>User Query</label>
-        <textarea id="query" placeholder="Ask your question..."></textarea>
+
+        <textarea
+            id="query"
+            placeholder="Ask your question..."
+        ></textarea>
 
         <label>Conversation History JSON</label>
         <textarea id="conversationHistory">[]</textarea>
@@ -180,29 +224,116 @@
         <label>Metadata Context JSON</label>
         <textarea id="metadataContext">{}</textarea>
 
-        <button onclick="sendChat()">Send</button>
-        <button class="secondary" onclick="loadLogs()">Refresh Logs</button>
+        <button onclick="sendChat()">
+            Send
+        </button>
+
+        <button
+            class="secondary"
+            onclick="loadLogs()"
+        >
+            Refresh Logs
+        </button>
+
+        <button
+            class="secondary"
+            onclick="saveMemoryToUi()"
+        >
+            Save Memory
+        </button>
+
+        <button
+            class="danger"
+            onclick="clearMemory()"
+        >
+            Clear Memory
+        </button>
     </div>
 
     <div class="tabs">
-        <button class="tab-button active" onclick="openTab('answerTab', this)">Answer</button>
-        <button class="tab-button" onclick="openTab('contextTab', this)">Context</button>
-        <button class="tab-button" onclick="openTab('tokenTab', this)">Token Usage</button>
-        <button class="tab-button" onclick="openTab('memoryTab', this)">Memory</button>
-        <button class="tab-button" onclick="openTab('jsonTab', this)">JSON Created</button>
-        <button class="tab-button" onclick="openTab('reasoningTab', this)">How Answer Was Created</button>
-        <button class="tab-button" onclick="openTab('logsTab', this)">Logs</button>
+
+        <button
+            class="tab-button active"
+            onclick="openTab('answerTab', this)"
+        >
+            Answer
+        </button>
+
+        <button
+            class="tab-button"
+            onclick="openTab('contextTab', this)"
+        >
+            Context
+        </button>
+
+        <button
+            class="tab-button"
+            onclick="openTab('tokenTab', this)"
+        >
+            Token Usage
+        </button>
+
+        <button
+            class="tab-button"
+            onclick="openTab('memoryTab', this)"
+        >
+            Memory
+        </button>
+
+        <button
+            class="tab-button"
+            onclick="openTab('jsonTab', this)"
+        >
+            JSON Created
+        </button>
+
+        <button
+            class="tab-button"
+            onclick="openTab('reasoningTab', this)"
+        >
+            How Answer Was Created
+        </button>
+
+        <button
+            class="tab-button"
+            onclick="openTab('logsTab', this)"
+        >
+            Logs
+        </button>
     </div>
 
-    <div id="answerTab" class="tab-content active">
+    <div
+        id="answerTab"
+        class="tab-content active"
+    >
         <h3>Answer</h3>
-        <div id="answer" class="answer">No answer yet.</div>
+
+        <div
+            id="answer"
+            class="answer"
+        >
+            No answer yet.
+        </div>
     </div>
 
-    <div id="contextTab" class="tab-content">
+    <div
+        id="contextTab"
+        class="tab-content"
+    >
         <h3>Context Engineering</h3>
 
         <div class="meta-grid">
+
+            <div class="meta-card">
+                <strong>Requested Role</strong>
+                <span id="requestedRole">-</span>
+            </div>
+
+            <div class="meta-card">
+                <strong>Resolved Role</strong>
+                <span id="resolvedRole">-</span>
+            </div>
+
             <div class="meta-card">
                 <strong>Selected Source</strong>
                 <span id="selectedSource">-</span>
@@ -229,53 +360,58 @@
         <pre id="retrievedContext"></pre>
     </div>
 
-    <div id="tokenTab" class="tab-content">
+    <div
+        id="tokenTab"
+        class="tab-content"
+    >
         <h3>Token Usage</h3>
 
-        <div class="meta-grid">
-            <div class="meta-card">
-                <strong>Total Input Tokens</strong>
-                <span id="totalInputTokens">0</span>
-            </div>
-
-            <div class="meta-card">
-                <strong>Total Output Tokens</strong>
-                <span id="totalOutputTokens">0</span>
-            </div>
-
-            <div class="meta-card">
-                <strong>Total Tokens</strong>
-                <span id="totalTokens">0</span>
-            </div>
-        </div>
-
-        <h4>Per-Agent Token Usage</h4>
         <pre id="tokenUsage">{}</pre>
     </div>
 
-    <div id="memoryTab" class="tab-content">
+    <div
+        id="memoryTab"
+        class="tab-content"
+    >
         <h3>Memory / History Snapshot</h3>
+
         <pre id="memorySnapshot">{}</pre>
     </div>
 
-    <div id="jsonTab" class="tab-content">
+    <div
+        id="jsonTab"
+        class="tab-content"
+    >
         <h3>Request JSON</h3>
+
         <pre id="requestJson">{}</pre>
 
         <h3>Response JSON</h3>
+
         <pre id="responseJson">{}</pre>
     </div>
 
-    <div id="reasoningTab" class="tab-content">
+    <div
+        id="reasoningTab"
+        class="tab-content"
+    >
         <h3>How We Came To This Answer</h3>
+
         <pre id="reasoningTrace"></pre>
     </div>
 
-    <div id="logsTab" class="tab-content">
+    <div
+        id="logsTab"
+        class="tab-content"
+    >
         <h3>Log File</h3>
-        <pre id="logFile">No logs loaded.</pre>
+
+        <pre id="logFile">
+No logs loaded.
+        </pre>
 
         <h3>Recent Logs</h3>
+
         <pre id="logs"></pre>
     </div>
 
@@ -284,41 +420,264 @@
 <script>
     /*
         Architectural Purpose:
-        Browser-side orchestration console for API testing and debugging.
+        Browser-side orchestration console
+        for API testing and debugging.
 
         Future Direction:
-        Replace this with React once backend contracts stabilize.
+        Replace with React once backend
+        contracts stabilize.
     */
+
+    const STORAGE_KEY =
+        "agentic_vitechq_chat_memory";
 
     let latestRequest = {};
     let latestResponse = {};
 
-    function openTab(tabId, button) {
-        const tabs = document.querySelectorAll(".tab-content");
-        const buttons = document.querySelectorAll(".tab-button");
+    function openTab(
+        tabId,
+        button
+    ) {
+        const tabs = document.querySelectorAll(
+            ".tab-content"
+        );
 
-        tabs.forEach(tab => tab.classList.remove("active"));
-        buttons.forEach(btn => btn.classList.remove("active"));
+        const buttons = document.querySelectorAll(
+            ".tab-button"
+        );
 
-        document.getElementById(tabId).classList.add("active");
+        tabs.forEach(tab =>
+            tab.classList.remove("active")
+        );
+
+        buttons.forEach(btn =>
+            btn.classList.remove("active")
+        );
+
+        document
+            .getElementById(tabId)
+            .classList.add("active");
+
         button.classList.add("active");
     }
 
-    function safeJsonParse(value, fallback) {
-        if (!value || !value.trim()) {
-            return fallback;
-        }
-
+    function safeJsonParse(
+        value,
+        fallback
+    ) {
         try {
-            return JSON.parse(value);
+            return JSON.parse(
+                value || JSON.stringify(fallback)
+            );
+
         } catch (error) {
-            alert("Invalid JSON: " + error.message);
+            alert(
+                "Invalid JSON: "
+                + error.message
+            );
+
             throw error;
         }
     }
 
+    function loadMemoryFromStorage() {
+        /*
+            Architectural Purpose:
+            Restore conversational memory
+            across browser refreshes.
+        */
+
+        const raw = localStorage.getItem(
+            STORAGE_KEY
+        );
+
+        if (!raw) {
+            return;
+        }
+
+        try {
+            const memory = JSON.parse(raw);
+
+            document.getElementById(
+                "conversationHistory"
+            ).value = JSON.stringify(
+                memory.conversation_history || [],
+                null,
+                2
+            );
+
+            document.getElementById(
+                "userContext"
+            ).value = JSON.stringify(
+                memory.user_context || {},
+                null,
+                2
+            );
+
+            document.getElementById(
+                "metadataContext"
+            ).value = JSON.stringify(
+                memory.metadata_context || {},
+                null,
+                2
+            );
+
+            document.getElementById(
+                "role"
+            ).value =
+                memory.role || "generic";
+
+            document.getElementById(
+                "tenantId"
+            ).value =
+                memory.tenant_id
+                || "default_tenant";
+
+            document.getElementById(
+                "uploadedBy"
+            ).value =
+                memory.uploaded_by || "sher";
+
+        } catch (error) {
+            console.warn(
+                "Unable to load memory",
+                error
+            );
+        }
+    }
+
+    function saveMemoryToUi() {
+        /*
+            Design Principle:
+            Browser-side lightweight memory persistence.
+        */
+
+        const memory = {
+            role:
+                document.getElementById("role").value
+                || "generic",
+
+            tenant_id:
+                document.getElementById("tenantId").value
+                || "default_tenant",
+
+            uploaded_by:
+                document.getElementById("uploadedBy").value
+                || "anonymous",
+
+            conversation_history:
+                safeJsonParse(
+                    document.getElementById(
+                        "conversationHistory"
+                    ).value,
+                    []
+                ),
+
+            user_context:
+                safeJsonParse(
+                    document.getElementById(
+                        "userContext"
+                    ).value,
+                    {}
+                ),
+
+            metadata_context:
+                safeJsonParse(
+                    document.getElementById(
+                        "metadataContext"
+                    ).value,
+                    {}
+                )
+        };
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(memory)
+        );
+
+        document.getElementById(
+            "memorySnapshot"
+        ).textContent = JSON.stringify(
+            memory,
+            null,
+            2
+        );
+    }
+
+    function updateConversationMemory(
+        query,
+        answer
+    ) {
+        /*
+            Design Principle:
+            Maintain lightweight rolling
+            conversational memory.
+        */
+
+        const history = safeJsonParse(
+            document.getElementById(
+                "conversationHistory"
+            ).value,
+            []
+        );
+
+        history.push({
+            role: "user",
+            content: query
+        });
+
+        history.push({
+            role: "assistant",
+            content: answer || ""
+        });
+
+        // Prevent unbounded prompt growth.
+        const trimmedHistory =
+            history.slice(-12);
+
+        document.getElementById(
+            "conversationHistory"
+        ).value = JSON.stringify(
+            trimmedHistory,
+            null,
+            2
+        );
+
+        saveMemoryToUi();
+    }
+
+    function clearMemory() {
+        /*
+            Architectural Purpose:
+            Reset browser-side conversational state.
+        */
+
+        localStorage.removeItem(
+            STORAGE_KEY
+        );
+
+        document.getElementById(
+            "conversationHistory"
+        ).value = "[]";
+
+        document.getElementById(
+            "userContext"
+        ).value = "{}";
+
+        document.getElementById(
+            "metadataContext"
+        ).value = "{}";
+
+        document.getElementById(
+            "memorySnapshot"
+        ).textContent = "{}";
+    }
+
     async function sendChat() {
-        const query = document.getElementById("query").value.trim();
+        const query = document
+            .getElementById("query")
+            .value
+            .trim();
 
         if (!query) {
             alert("Query is required.");
@@ -327,186 +686,400 @@
 
         latestRequest = {
             query: query,
-            tenant_id: document.getElementById("tenantId").value || "default_tenant",
-            uploaded_by: document.getElementById("uploadedBy").value || "anonymous",
-            conversation_history: safeJsonParse(
-                document.getElementById("conversationHistory").value,
-                []
-            ),
-            user_context: safeJsonParse(
-                document.getElementById("userContext").value,
-                {}
-            ),
-            metadata_context: safeJsonParse(
-                document.getElementById("metadataContext").value,
-                {}
-            )
+
+            tenant_id:
+                document.getElementById(
+                    "tenantId"
+                ).value
+                || "default_tenant",
+
+            uploaded_by:
+                document.getElementById(
+                    "uploadedBy"
+                ).value
+                || "anonymous",
+
+            role:
+                document.getElementById(
+                    "role"
+                ).value
+                || "generic",
+
+            conversation_history:
+                safeJsonParse(
+                    document.getElementById(
+                        "conversationHistory"
+                    ).value,
+                    []
+                ),
+
+            user_context:
+                safeJsonParse(
+                    document.getElementById(
+                        "userContext"
+                    ).value,
+                    {}
+                ),
+
+            metadata_context:
+                safeJsonParse(
+                    document.getElementById(
+                        "metadataContext"
+                    ).value,
+                    {}
+                )
         };
 
-        document.getElementById("requestJson").textContent =
-            JSON.stringify(latestRequest, null, 2);
+        document.getElementById(
+            "requestJson"
+        ).textContent = JSON.stringify(
+            latestRequest,
+            null,
+            2
+        );
 
         try {
-            const response = await fetch("/agent/chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(latestRequest)
-            });
+            const response = await fetch(
+                "/agent/chat",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify(
+                        latestRequest
+                    )
+                }
+            );
 
             if (!response.ok) {
-                const errorText = await response.text();
+                const errorText =
+                    await response.text();
+
                 throw new Error(errorText);
             }
 
-            latestResponse = await response.json();
+            latestResponse =
+                await response.json();
 
             renderResponse(latestResponse);
+
+            updateConversationMemory(
+                query,
+                latestResponse.answer
+            );
+
+            document.getElementById(
+                "query"
+            ).value = "";
+
             await loadLogs();
 
         } catch (error) {
-            document.getElementById("answer").innerHTML =
-                "<span class='error'>" + error.message + "</span>";
+            document.getElementById(
+                "answer"
+            ).innerHTML =
+                "<span class='error'>"
+                + error.message
+                + "</span>";
         }
     }
 
     function renderResponse(data) {
-        document.getElementById("answer").textContent =
+
+        document.getElementById(
+            "answer"
+        ).textContent =
             data.answer || "";
 
-        document.getElementById("selectedSource").textContent =
+        document.getElementById(
+            "requestedRole"
+        ).textContent =
+            data.role || "-";
+
+        document.getElementById(
+            "resolvedRole"
+        ).textContent =
+            data.resolved_role || "-";
+
+        document.getElementById(
+            "selectedSource"
+        ).textContent =
             data.selected_source || "-";
 
-        document.getElementById("retrievedContextCount").textContent =
+        document.getElementById(
+            "retrievedContextCount"
+        ).textContent =
             data.retrieved_context_count ?? 0;
 
-        renderValidationStatus(data.validation_status);
+        renderValidationStatus(
+            data.validation_status
+        );
 
-        document.getElementById("contextMetadata").textContent =
-            JSON.stringify(data.context_engineering_metadata || {}, null, 2);
+        document.getElementById(
+            "contextMetadata"
+        ).textContent = JSON.stringify(
+            data.context_engineering_metadata || {},
+            null,
+            2
+        );
 
-        document.getElementById("groundedContext").textContent =
+        document.getElementById(
+            "groundedContext"
+        ).textContent =
             data.grounded_context || "";
 
-        document.getElementById("retrievedContext").textContent =
-            JSON.stringify(data.retrieved_context || [], null, 2);
+        document.getElementById(
+            "retrievedContext"
+        ).textContent = JSON.stringify(
+            data.retrieved_context || [],
+            null,
+            2
+        );
 
-        document.getElementById("tokenUsage").textContent =
-            JSON.stringify(data.token_usage || {}, null, 2);
+        document.getElementById(
+            "tokenUsage"
+        ).textContent = JSON.stringify(
+            data.token_usage || {},
+            null,
+            2
+        );
 
-        renderTokenTotals(data.token_usage || {});
+        document.getElementById(
+            "memorySnapshot"
+        ).textContent = JSON.stringify(
+            data.memory_snapshot || {},
+            null,
+            2
+        );
 
-        document.getElementById("memorySnapshot").textContent =
-            JSON.stringify(data.memory_snapshot || {}, null, 2);
+        document.getElementById(
+            "responseJson"
+        ).textContent = JSON.stringify(
+            data,
+            null,
+            2
+        );
 
-        document.getElementById("responseJson").textContent =
-            JSON.stringify(data, null, 2);
-
-        document.getElementById("reasoningTrace").textContent =
+        document.getElementById(
+            "reasoningTrace"
+        ).textContent =
             buildReasoningTrace(data);
     }
 
-    function renderValidationStatus(status) {
-        const element = document.getElementById("validationStatus");
+    function renderValidationStatus(
+        status
+    ) {
+        const element =
+            document.getElementById(
+                "validationStatus"
+            );
+
         const value = status || "-";
 
         element.textContent = value;
         element.className = "";
 
         if (value === "VALID") {
-            element.classList.add("status-valid");
+            element.classList.add(
+                "status-valid"
+            );
+
             return;
         }
 
-        if (value === "NOT_VALIDATED" || value === "WARNING") {
-            element.classList.add("status-warning");
+        if (
+            value === "NOT_VALIDATED"
+            || value === "WARNING"
+        ) {
+            element.classList.add(
+                "status-warning"
+            );
+
             return;
         }
 
-        element.classList.add("status-error");
+        element.classList.add(
+            "status-error"
+        );
     }
 
-    function renderTokenTotals(tokenUsage) {
+    function buildReasoningTrace(
+        data
+    ) {
         /*
-            Design Principle:
-            UI computes aggregate token totals without changing API contract.
+            Architectural Purpose:
+            Human-readable orchestration explanation.
         */
 
-        let inputTotal = 0;
-        let outputTotal = 0;
-        let total = 0;
-
-        Object.values(tokenUsage).forEach(agentUsage => {
-            inputTotal += agentUsage.input_tokens || 0;
-            outputTotal += agentUsage.output_tokens || 0;
-            total += agentUsage.total_tokens || 0;
-        });
-
-        document.getElementById("totalInputTokens").textContent =
-            inputTotal;
-
-        document.getElementById("totalOutputTokens").textContent =
-            outputTotal;
-
-        document.getElementById("totalTokens").textContent =
-            total;
-    }
-
-    function buildReasoningTrace(data) {
         const lines = [];
 
-        lines.push("1. User query received:");
-        lines.push(data.refined_query || latestRequest.query || "");
+        lines.push(
+            "1. User query received:"
+        );
+
+        lines.push(
+            data.refined_query
+            || latestRequest.query
+            || ""
+        );
+
         lines.push("");
 
-        lines.push("2. Query analysis:");
-        lines.push("Intent: " + (data.intent || "-"));
-        lines.push("Domain: " + (data.domain || "-"));
-        lines.push("Keywords: " + JSON.stringify(data.keywords || []));
-        lines.push("Entities: " + JSON.stringify(data.entities || []));
+        lines.push(
+            "2. Role resolution:"
+        );
+
+        lines.push(
+            "Requested Role: "
+            + (data.role || "-")
+        );
+
+        lines.push(
+            "Resolved Role: "
+            + (data.resolved_role || "-")
+        );
+
         lines.push("");
 
-        lines.push("3. Source routing:");
-        lines.push("Selected Source: " + (data.selected_source || "-"));
-        lines.push("Retrieval Required: " + data.retrieval_required);
-        lines.push("Retrieval Strategy: " + data.retrieval_strategy);
+        lines.push(
+            "3. Query analysis:"
+        );
+
+        lines.push(
+            "Intent: "
+            + (data.intent || "-")
+        );
+
+        lines.push(
+            "Domain: "
+            + (data.domain || "-")
+        );
+
+        lines.push(
+            "Keywords: "
+            + JSON.stringify(
+                data.keywords || []
+            )
+        );
+
+        lines.push(
+            "Entities: "
+            + JSON.stringify(
+                data.entities || []
+            )
+        );
+
         lines.push("");
 
-        lines.push("4. Context engineering:");
-        lines.push(JSON.stringify(data.context_engineering_metadata || {}, null, 2));
+        lines.push(
+            "4. Source routing:"
+        );
+
+        lines.push(
+            "Selected Source: "
+            + (data.selected_source || "-")
+        );
+
+        lines.push(
+            "Retrieval Required: "
+            + data.retrieval_required
+        );
+
+        lines.push(
+            "Retrieval Strategy: "
+            + data.retrieval_strategy
+        );
+
         lines.push("");
 
-        lines.push("5. Validation:");
-        lines.push("Status: " + (data.validation_status || "-"));
-        lines.push("Errors: " + JSON.stringify(data.validation_errors || []));
+        lines.push(
+            "5. Context engineering:"
+        );
+
+        lines.push(
+            JSON.stringify(
+                data.context_engineering_metadata || {},
+                null,
+                2
+            )
+        );
+
         lines.push("");
 
-        lines.push("6. Agent trace:");
+        lines.push(
+            "6. Validation:"
+        );
 
-        (data.trace || []).forEach(item => {
-            lines.push("- " + item);
-        });
+        lines.push(
+            "Status: "
+            + (data.validation_status || "-")
+        );
+
+        lines.push(
+            "Errors: "
+            + JSON.stringify(
+                data.validation_errors || []
+            )
+        );
+
+        lines.push("");
+
+        lines.push(
+            "7. Agent trace:"
+        );
+
+        (data.trace || []).forEach(
+            item => {
+                lines.push("- " + item);
+            }
+        );
 
         return lines.join("\n");
     }
 
     async function loadLogs() {
+        /*
+            Architectural Purpose:
+            Lightweight runtime observability.
+        */
+
         try {
-            const response = await fetch("/agent/logs?lines=200");
-            const data = await response.json();
+            const response = await fetch(
+                "/agent/logs?lines=200"
+            );
 
-            document.getElementById("logFile").textContent =
-                data.log_file || data.message || "No log file found.";
+            const data =
+                await response.json();
 
-            document.getElementById("logs").textContent =
+            document.getElementById(
+                "logFile"
+            ).textContent =
+                data.log_file
+                || data.message
+                || "No log file found.";
+
+            document.getElementById(
+                "logs"
+            ).textContent =
                 (data.lines || []).join("\n");
 
         } catch (error) {
-            document.getElementById("logs").textContent =
-                "Unable to load logs: " + error.message;
+            document.getElementById(
+                "logs"
+            ).textContent =
+                "Unable to load logs: "
+                + error.message;
         }
     }
+
+    // Bootstrap lightweight browser-side memory.
+    loadMemoryFromStorage();
+
+    saveMemoryToUi();
 
     loadLogs();
 </script>

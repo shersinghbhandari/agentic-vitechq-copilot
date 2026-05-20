@@ -14,28 +14,29 @@ class AnswerGeneratorAgent(BaseAgent):
     Architectural Purpose
     ---------------------
     Converts engineered context into
-    grounded natural language responses.
+    grounded, role-aware natural language responses.
 
     This agent is responsible for:
         - answer synthesis
+        - role-aware generation
         - retrieval-grounded generation
-        - concise architect-level responses
+        - conversation-aware continuity
         - hallucination reduction
 
     Design Principles
     -----------------
     1. Grounded generation first
-       - Retrieval context preferred over model memory.
+       - Engineered context is preferred over model memory.
 
-    2. Context-aware answering
-       - Uses refined query + engineered context.
+    2. Role-aware answering
+       - Uses resolved role guidance from context engineering.
 
-    3. Hallucination minimization
-       - Explicitly avoids fabricated information.
+    3. Conversation continuity
+       - Uses recent history when available.
 
     4. Thin orchestration layer
        - Prompt execution only.
-       - Business state handled in AgentContext.
+       - Business state remains in AgentContext.
     """
 
     name = "AnswerGeneratorAgent"
@@ -48,7 +49,7 @@ class AnswerGeneratorAgent(BaseAgent):
         context: AgentContext,
     ) -> AgentContext:
         """
-        Generate grounded final response.
+        Generate final grounded answer.
         """
 
         prompt = ChatPromptTemplate.from_messages(
@@ -59,10 +60,12 @@ class AnswerGeneratorAgent(BaseAgent):
 You are an enterprise AI assistant.
 
 Rules:
+- Follow the resolved role guidance from engineered context.
 - Use grounded context when available.
+- Use conversation history for continuity.
 - Do not invent facts.
 - If context is missing, clearly say what is missing.
-- Keep answer architect-level but concise.
+- Keep answer practical and concise.
 """,
                 ),
                 (
@@ -109,6 +112,7 @@ Engineered Context:
             context,
             (
                 "Answer generated. "
+                f"resolved_role={context.resolved_role}, "
                 f"context_present="
                 f"{bool(context.grounded_context)}."
             ),

@@ -10,24 +10,26 @@ class ContextEngineeringService:
     Architectural Purpose
     ---------------------
     Converts distributed orchestration state into
-    a grounded, prompt-ready LLM context.
+    a grounded, role-aware, prompt-ready LLM context.
 
     This layer merges:
-        - retrieval output
+        - resolved role guidance
         - conversation memory
         - user context
         - metadata context
+        - retrieval output
 
     Design Principles
     -----------------
     1. Deterministic context shaping
        - Same state produces same prompt context.
 
-    2. Retrieval-grounded generation
-       - Retrieved chunks become primary grounding source.
+    2. Role-aware grounding
+       - Output style adapts to developer,
+         performance, analyst, or architect needs.
 
     3. Modular context composition
-       - Each context type isolated into sections.
+       - Each context type is isolated into sections.
 
     4. Future extensible
        - Supports ranking, compression,
@@ -43,6 +45,11 @@ class ContextEngineeringService:
         """
 
         sections: list[str] = []
+
+        # Role guidance is always included.
+        sections.append(
+            self._format_role_context(context)
+        )
 
         if context.user_context:
             sections.append(
@@ -80,8 +87,10 @@ class ContextEngineeringService:
             if section
         )
 
-        # Lightweight observability for context shaping decisions.
+        # Lightweight observability for context-shaping decisions.
         context.context_engineering_metadata = {
+            "requested_role": context.role,
+            "resolved_role": context.resolved_role,
             "has_user_context": bool(
                 context.user_context
             ),
@@ -94,11 +103,55 @@ class ContextEngineeringService:
             "retrieved_context_count": len(
                 context.retrieved_context
             ),
-            "strategy":
-                "USER_METADATA_HISTORY_RETRIEVAL",
+            "strategy": "ROLE_MEMORY_METADATA_RETRIEVAL",
         }
 
         return context
+
+    def _format_role_context(
+        self,
+        context: AgentContext,
+    ) -> str:
+        """
+        Build role-specific generation guidance.
+
+        Architectural Purpose
+        ---------------------
+        Keeps role behavior centralized instead of
+        scattering persona rules across prompts.
+        """
+
+        role = context.resolved_role or context.role
+
+        role_guidance = {
+            "developer": (
+                "Focus on code, implementation, debugging, APIs, "
+                "classes, files, and practical fixes."
+            ),
+            "performance": (
+                "Focus on latency, throughput, SQL tuning, memory, "
+                "profiling, bottlenecks, and scalability."
+            ),
+            "analyst": (
+                "Focus on requirements, business meaning, reporting, "
+                "process flow, and data interpretation."
+            ),
+            "architect": (
+                "Focus on design, trade-offs, extensibility, security, "
+                "observability, reliability, and scale."
+            ),
+            "generic": (
+                "Use the most suitable explanation style based on the query."
+            ),
+        }
+
+        return (
+            "[ROLE_CONTEXT]\n"
+            f"requested_role: {context.role}\n"
+            f"resolved_role: {role}\n"
+            "guidance: "
+            f"{role_guidance.get(role, role_guidance['generic'])}"
+        )
 
     def _format_section(
         self,
@@ -134,7 +187,7 @@ class ContextEngineeringService:
 
         lines: list[str] = []
 
-        for item in history[-6:]:
+        for item in history[-8:]:
             role = item.get(
                 "role",
                 "unknown",

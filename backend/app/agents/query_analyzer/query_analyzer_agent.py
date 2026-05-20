@@ -22,6 +22,7 @@ class QueryAnalyzerAgent(BaseAgent):
         - keyword extraction
         - entity extraction
         - retrieval decisioning
+        - runtime role resolution
 
     Design Principles
     -----------------
@@ -31,8 +32,9 @@ class QueryAnalyzerAgent(BaseAgent):
     2. Structured orchestration contract
        - Produces deterministic downstream state.
 
-    3. Retrieval-aware routing
-       - Determines whether RAG lookup is needed.
+    3. Role-aware routing
+       - Supports developer, performance,
+         analyst, architect, and generic modes.
 
     4. Fail-safe execution
        - Graceful fallback if LLM parsing fails.
@@ -48,7 +50,7 @@ class QueryAnalyzerAgent(BaseAgent):
         context: AgentContext,
     ) -> AgentContext:
         """
-        Analyze incoming user query.
+        Analyze incoming query and resolve runtime role.
         """
 
         prompt = ChatPromptTemplate.from_messages(
@@ -67,14 +69,44 @@ Fields:
 - keywords
 - entities
 - retrieval_required
+- resolved_role
 
-Rules:
+Role rules:
+- If role is developer, keep resolved_role as developer.
+- If role is performance, keep resolved_role as performance.
+- If role is analyst, keep resolved_role as analyst.
+- If role is generic, infer best role from the query.
+
+Available resolved_role values:
+- developer
+- performance
+- analyst
+- architect
+- generic
+
+Examples:
+- code, API, class, error, implementation -> developer
+- latency, throughput, memory, SQL tuning -> performance
+- report, requirement, business, data meaning -> analyst
+- design, architecture, tradeoff, scalability -> architect
+- unclear -> generic
+
+Other rules:
 - Fix typos.
 - Preserve original meaning.
 - Use retrieval_required=true if answer needs documents, DB, or project context.
 """,
                 ),
-                ("human", "{query}"),
+                (
+                    "human",
+                    """
+Role:
+{role}
+
+Query:
+{query}
+""",
+                ),
             ]
         )
 
@@ -82,6 +114,7 @@ Rules:
 
         response = chain.invoke(
             {
+                "role": context.role,
                 "query": context.query,
             }
         )
@@ -106,6 +139,11 @@ Rules:
                 "keywords": [],
                 "entities": [],
                 "retrieval_required": True,
+                "resolved_role": (
+                    context.role
+                    if context.role != "generic"
+                    else "generic"
+                ),
             }
 
         context.refined_query = data.get(
@@ -138,12 +176,18 @@ Rules:
             True,
         )
 
+        context.resolved_role = data.get(
+            "resolved_role",
+            context.role,
+        )
+
         self.trace(
             context,
             (
                 "Query analyzed. "
                 f"intent={context.intent}, "
                 f"domain={context.domain}, "
+                f"resolved_role={context.resolved_role}, "
                 f"retrieval_required="
                 f"{context.retrieval_required}."
             ),

@@ -25,6 +25,7 @@ router = APIRouter(
     tags=["Agent Chat"],
 )
 
+# Canonical project root resolution.
 PROJECT_ROOT = (
     Path(__file__)
     .resolve()
@@ -62,7 +63,7 @@ def chat_ui():
     Future Direction
     ----------------
     Replace with React/Next.js frontend
-    or static asset hosting.
+    or production static asset hosting.
     """
 
     html_path = (
@@ -160,10 +161,13 @@ def chat(
     2. Trace-first execution
        - Every request gets correlation tracking.
 
-    3. Multi-tenant ready
+    3. Role-aware orchestration
+       - Supports runtime persona specialization.
+
+    4. Multi-tenant ready
        - Tenant/user metadata propagated throughout workflow.
 
-    4. Safe error boundary
+    5. Safe error boundary
        - Internal failures hidden behind correlation ID.
     """
 
@@ -200,9 +204,19 @@ def chat(
             tenant_id=request.tenant_id,
             uploaded_by=request.uploaded_by,
             correlation_id=correlation_id,
-            conversation_history=request.conversation_history,
+
+            # User-selected persona/role.
+            role=request.role,
+
+            conversation_history=(
+                request.conversation_history
+            ),
+
             user_context=request.user_context,
-            metadata_context=request.metadata_context,
+
+            metadata_context=(
+                request.metadata_context
+            ),
         )
 
         graph = ChatGraph(db)
@@ -218,6 +232,8 @@ def chat(
             (
                 "Agent chat completed. "
                 f"source={result.selected_source}, "
+                f"resolved_role="
+                f"{result.resolved_role}, "
                 f"retrieved_context_count="
                 f"{len(retrieved_context)}, "
                 f"validation_status="
@@ -228,22 +244,57 @@ def chat(
         return ChatResponse(
             answer=result.answer or "",
             correlation_id=result.correlation_id,
-            refined_query=result.refined_query,
+
+            role=result.role,
+
+            resolved_role=(
+                result.resolved_role
+            ),
+
+            refined_query=(
+                result.refined_query
+            ),
+
             intent=result.intent,
             domain=result.domain,
+
             keywords=result.keywords,
             entities=result.entities,
-            selected_source=result.selected_source,
-            retrieval_required=result.retrieval_required,
-            retrieval_strategy=result.retrieval_strategy,
+
+            selected_source=(
+                result.selected_source
+            ),
+
+            retrieval_required=(
+                result.retrieval_required
+            ),
+
+            retrieval_strategy=(
+                result.retrieval_strategy
+            ),
+
             retrieved_context_count=len(
                 retrieved_context
             ),
-            retrieved_context=retrieved_context,
-            grounded_context=result.grounded_context,
-            validation_status=result.validation_status,
-            validation_errors=result.validation_errors,
+
+            retrieved_context=(
+                retrieved_context
+            ),
+
+            grounded_context=(
+                result.grounded_context
+            ),
+
+            validation_status=(
+                result.validation_status
+            ),
+
+            validation_errors=(
+                result.validation_errors
+            ),
+
             token_usage=result.token_usage,
+
             context_engineering_metadata=(
                 result.context_engineering_metadata
             ),
@@ -253,12 +304,17 @@ def chat(
                 conversation_history=(
                     request.conversation_history
                 ),
-                user_context=request.user_context,
+
+                user_context=(
+                    request.user_context
+                ),
+
                 metadata_context=(
                     request.metadata_context
                 ),
             ),
 
+            # Lightweight orchestration trace.
             trace=result.trace,
         )
 
