@@ -74,6 +74,9 @@ class ChatRequest(BaseModel):
     correlation_id: str | None = None
 
     # User-selected role/persona.
+    #
+    # generic:
+    #     role inferred dynamically at runtime.
     role: str = "generic"
 
     # Conversational memory input.
@@ -102,6 +105,8 @@ class ChatResponse(BaseModel):
         - generated response
         - orchestration metadata
         - retrieval visibility
+        - routing visibility
+        - role resolution visibility
         - validation output
         - lightweight observability
 
@@ -114,7 +119,7 @@ class ChatResponse(BaseModel):
        - Retrieval decisions and grounding exposed.
 
     3. Role-aware generation
-       - Final resolved role returned to clients.
+       - Final resolved role and instructions returned.
 
     4. Future extensible
        - Supports citations, confidence scoring,
@@ -133,18 +138,41 @@ class ChatResponse(BaseModel):
     # Runtime resolved role from orchestration.
     resolved_role: str | None = None
 
+    # Final role instruction used during generation.
+    role_instruction: str | None = None
+
     # Query analysis output.
     refined_query: str | None = None
 
     intent: str | None = None
+
     domain: str | None = None
 
-    keywords: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(
+        default_factory=list
+    )
 
-    entities: list[str] = Field(default_factory=list)
+    entities: list[str] = Field(
+        default_factory=list
+    )
 
     # Retrieval routing metadata.
     selected_source: str | None = None
+
+    # Final answer generation mode.
+    #
+    # Examples:
+    # - GROUNDED_RAG
+    # - GENERAL_LLM
+    # - HYBRID
+    # - MEMORY_ONLY
+    # - TOOL_ASSISTED
+    answer_mode: str = "UNKNOWN"
+
+    # Human-readable routing explanation.
+    source_explanation: str = (
+        "Source has not been resolved yet."
+    )
 
     retrieval_required: bool = True
 
@@ -184,4 +212,6 @@ class ChatResponse(BaseModel):
     )
 
     # Lightweight orchestration execution trace.
-    trace: list[str] = Field(default_factory=list)
+    trace: list[str] = Field(
+        default_factory=list
+    )

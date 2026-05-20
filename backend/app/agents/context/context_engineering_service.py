@@ -9,31 +9,24 @@ class ContextEngineeringService:
 
     Architectural Purpose
     ---------------------
-    Converts distributed orchestration state into
-    a grounded, role-aware, prompt-ready LLM context.
-
-    This layer merges:
-        - resolved role guidance
-        - conversation memory
-        - user context
-        - metadata context
-        - retrieval output
+    Builds source-aware, role-aware, prompt-ready
+    context from orchestration state.
 
     Design Principles
     -----------------
     1. Deterministic context shaping
-       - Same state produces same prompt context.
+       - Same AgentContext produces same prompt context.
 
-    2. Role-aware grounding
-       - Output style adapts to developer,
-         performance, analyst, or architect needs.
+    2. Source transparency
+       - Generator knows whether context came from vector DB,
+         general LLM fallback, or another source.
 
-    3. Modular context composition
-       - Each context type is isolated into sections.
+    3. Explicit role behavior
+       - Runtime role instruction is injected into context.
 
     4. Future extensible
-       - Supports ranking, compression,
-         memory prioritization, and token optimization.
+       - Supports compression, citations, memory ranking,
+         reranking metadata, and token optimization.
     """
 
     def build(
@@ -41,12 +34,15 @@ class ContextEngineeringService:
         context: AgentContext,
     ) -> AgentContext:
         """
-        Build final prompt-ready grounded context.
+        Build final engineered context for answer generation.
         """
 
         sections: list[str] = []
 
-        # Role guidance is always included.
+        sections.append(
+            self._format_source_context(context)
+        )
+
         sections.append(
             self._format_role_context(context)
         )
@@ -87,10 +83,15 @@ class ContextEngineeringService:
             if section
         )
 
-        # Lightweight observability for context-shaping decisions.
         context.context_engineering_metadata = {
             "requested_role": context.role,
             "resolved_role": context.resolved_role,
+            "role_instruction_present": bool(
+                context.role_instruction
+            ),
+            "selected_source": context.selected_source,
+            "answer_mode": context.answer_mode,
+            "source_explanation": context.source_explanation,
             "has_user_context": bool(
                 context.user_context
             ),
@@ -103,54 +104,44 @@ class ContextEngineeringService:
             "retrieved_context_count": len(
                 context.retrieved_context
             ),
-            "strategy": "ROLE_MEMORY_METADATA_RETRIEVAL",
+            "strategy": "SOURCE_ROLE_MEMORY_METADATA_RETRIEVAL",
         }
 
         return context
+
+    def _format_source_context(
+        self,
+        context: AgentContext,
+    ) -> str:
+        """
+        Format source-routing guidance.
+
+        Architectural Purpose
+        ---------------------
+        Prevents false claims of local grounding
+        when vector context is unavailable.
+        """
+
+        return (
+            "[SOURCE_CONTEXT]\n"
+            f"selected_source: {context.selected_source}\n"
+            f"answer_mode: {context.answer_mode}\n"
+            f"source_explanation: {context.source_explanation}"
+        )
 
     def _format_role_context(
         self,
         context: AgentContext,
     ) -> str:
         """
-        Build role-specific generation guidance.
-
-        Architectural Purpose
-        ---------------------
-        Keeps role behavior centralized instead of
-        scattering persona rules across prompts.
+        Format runtime role guidance for generation.
         """
-
-        role = context.resolved_role or context.role
-
-        role_guidance = {
-            "developer": (
-                "Focus on code, implementation, debugging, APIs, "
-                "classes, files, and practical fixes."
-            ),
-            "performance": (
-                "Focus on latency, throughput, SQL tuning, memory, "
-                "profiling, bottlenecks, and scalability."
-            ),
-            "analyst": (
-                "Focus on requirements, business meaning, reporting, "
-                "process flow, and data interpretation."
-            ),
-            "architect": (
-                "Focus on design, trade-offs, extensibility, security, "
-                "observability, reliability, and scale."
-            ),
-            "generic": (
-                "Use the most suitable explanation style based on the query."
-            ),
-        }
 
         return (
             "[ROLE_CONTEXT]\n"
             f"requested_role: {context.role}\n"
-            f"resolved_role: {role}\n"
-            "guidance: "
-            f"{role_guidance.get(role, role_guidance['generic'])}"
+            f"resolved_role: {context.resolved_role}\n"
+            f"role_instruction:\n{context.role_instruction or ''}"
         )
 
     def _format_section(
@@ -177,12 +168,11 @@ class ContextEngineeringService:
         history: list[dict[str, str]],
     ) -> str:
         """
-        Conversation memory formatter.
+        Format recent conversation memory.
 
         Design Principle
         ----------------
-        Keeps only recent conversational state
-        to reduce prompt bloat and token cost.
+        Keep recent turns only to control token growth.
         """
 
         lines: list[str] = []
@@ -213,15 +203,12 @@ class ContextEngineeringService:
         retrieved_context: list[str],
     ) -> str:
         """
-        Retrieval grounding formatter.
+        Format retrieved enterprise knowledge.
 
         Future Direction
         ----------------
-        Can evolve into:
-            - reranked chunks
-            - citation-aware formatting
-            - semantic compression
-            - relevance scoring
+        Add source metadata, citations,
+        rerank scores, and chunk IDs.
         """
 
         chunks: list[str] = []

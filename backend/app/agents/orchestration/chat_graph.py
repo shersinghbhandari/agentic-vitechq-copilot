@@ -17,6 +17,7 @@ from app.agents.retrieval.retrieval_agent import RetrievalAgent
 from app.agents.retrieval.vector_precheck_agent import (
     VectorPrecheckAgent,
 )
+from app.agents.roles.role_policy_agent import RolePolicyAgent
 from app.agents.routing.source_router_agent import SourceRouterAgent
 from app.agents.validation.validation_agent import ValidationAgent
 
@@ -27,26 +28,23 @@ class ChatGraph:
 
     Architectural Purpose
     ---------------------
-    Controls the end-to-end agent execution flow:
-        Vector Precheck -> Query Analyzer -> Source Router
-        -> Retrieval -> Context Builder -> Answer Generator
-        -> Validation
+    Controls the agent execution flow from retrieval
+    precheck through validation.
 
     Design Principles
     -----------------
     1. Controlled orchestration
        - Agents execute in a predictable sequence.
 
-    2. Explicit state transitions
+    2. Explicit state transition
        - AgentContext is the shared workflow contract.
 
-    3. Production extensibility
-       - Supports future conditional routing,
-         retries, checkpoints, and human review.
+    3. Role-aware generation
+       - Role policy is applied before context building.
 
-    4. Separation of responsibility
-       - Graph controls flow.
-       - Agents own business behavior.
+    4. Future extensible
+       - Supports conditional routing, retries,
+         checkpoints, and tool-assisted workflows.
     """
 
     def __init__(
@@ -55,6 +53,7 @@ class ChatGraph:
     ):
         self.vector_precheck = VectorPrecheckAgent(db)
         self.query_analyzer = QueryAnalyzerAgent()
+        self.role_policy = RolePolicyAgent()
         self.source_router = SourceRouterAgent()
         self.retrieval_agent = RetrievalAgent(db)
         self.context_builder = ContextBuilderAgent()
@@ -77,15 +76,7 @@ class ChatGraph:
 
     def _build_graph(self):
         """
-        Compile the agent workflow graph.
-
-        Future Direction
-        ----------------
-        Add conditional edges for:
-            - no vector data
-            - no retrieval needed
-            - clarification required
-            - validation retry
+        Compile deterministic agent workflow.
         """
 
         workflow = StateGraph(AgentContext)
@@ -98,6 +89,11 @@ class ChatGraph:
         workflow.add_node(
             "query_analyzer",
             self.query_analyzer.execute,
+        )
+
+        workflow.add_node(
+            "role_policy",
+            self.role_policy.execute,
         )
 
         workflow.add_node(
@@ -134,6 +130,11 @@ class ChatGraph:
 
         workflow.add_edge(
             "query_analyzer",
+            "role_policy",
+        )
+
+        workflow.add_edge(
+            "role_policy",
             "source_router",
         )
 

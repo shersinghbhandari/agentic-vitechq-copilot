@@ -11,33 +11,43 @@ from app.agents.core.llm_factory import LlmFactory
 
 class QueryAnalyzerAgent(BaseAgent):
     """
-    Converts raw user input into structured orchestration state.
+    Semantic query analysis orchestration agent.
 
     Architectural Purpose
     ---------------------
-    Responsible for:
+    Converts raw user input into structured
+    orchestration metadata for downstream agents.
+
+    This agent is responsible for:
         - query refinement
         - intent detection
         - domain classification
         - keyword extraction
         - entity extraction
         - retrieval decisioning
-        - runtime role resolution
+        - runtime role inference
 
     Design Principles
     -----------------
-    1. LLM-driven semantic understanding
-       - Better than regex/rule-only parsing.
-
-    2. Structured orchestration contract
+    1. Structured orchestration contract
        - Produces deterministic downstream state.
 
-    3. Role-aware routing
-       - Supports developer, performance,
-         analyst, architect, and generic modes.
+    2. Retrieval-aware analysis
+       - Determines whether enterprise retrieval is needed.
+
+    3. Runtime role inference
+       - Allows adaptive response specialization.
 
     4. Fail-safe execution
-       - Graceful fallback if LLM parsing fails.
+       - Falls back safely if LLM output is malformed.
+
+    5. Future extensible
+       - Supports:
+            - query decomposition
+            - metadata filters
+            - tool planning
+            - multi-hop retrieval
+            - semantic routing
     """
 
     name = "QueryAnalyzerAgent"
@@ -50,7 +60,7 @@ class QueryAnalyzerAgent(BaseAgent):
         context: AgentContext,
     ) -> AgentContext:
         """
-        Analyze incoming query and resolve runtime role.
+        Analyze query and populate orchestration metadata.
         """
 
         prompt = ChatPromptTemplate.from_messages(
@@ -62,7 +72,7 @@ You are a query analysis agent.
 
 Return only valid JSON.
 
-Fields:
+Required fields:
 - refined_query
 - intent
 - domain
@@ -71,11 +81,12 @@ Fields:
 - retrieval_required
 - resolved_role
 
-Role rules:
-- If role is developer, keep resolved_role as developer.
-- If role is performance, keep resolved_role as performance.
-- If role is analyst, keep resolved_role as analyst.
-- If role is generic, infer best role from the query.
+Role resolution rules:
+- If input role is developer, resolved_role must be developer.
+- If input role is performance, resolved_role must be performance.
+- If input role is analyst, resolved_role must be analyst.
+- If input role is architect, resolved_role must be architect.
+- If input role is generic, infer the best role from the query.
 
 Available resolved_role values:
 - developer
@@ -84,11 +95,11 @@ Available resolved_role values:
 - architect
 - generic
 
-Examples:
-- code, API, class, error, implementation -> developer
-- latency, throughput, memory, SQL tuning -> performance
-- report, requirement, business, data meaning -> analyst
-- design, architecture, tradeoff, scalability -> architect
+Inference examples:
+- code, class, API, error, stack trace, implementation -> developer
+- latency, throughput, memory, SQL tuning, slow query -> performance
+- requirement, business flow, report, process, data meaning -> analyst
+- architecture, design, scalability, reliability, trade-off -> architect
 - unclear -> generic
 
 Other rules:
@@ -100,7 +111,7 @@ Other rules:
                 (
                     "human",
                     """
-Role:
+Input Role:
 {role}
 
 Query:
@@ -141,8 +152,7 @@ Query:
                 "retrieval_required": True,
                 "resolved_role": (
                     context.role
-                    if context.role != "generic"
-                    else "generic"
+                    or "generic"
                 ),
             }
 
@@ -178,16 +188,16 @@ Query:
 
         context.resolved_role = data.get(
             "resolved_role",
-            context.role,
+            context.role or "generic",
         )
 
         self.trace(
             context,
             (
                 "Query analyzed. "
+                f"resolved_role="
+                f"{context.resolved_role}, "
                 f"intent={context.intent}, "
-                f"domain={context.domain}, "
-                f"resolved_role={context.resolved_role}, "
                 f"retrieval_required="
                 f"{context.retrieval_required}."
             ),

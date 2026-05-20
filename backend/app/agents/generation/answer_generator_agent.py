@@ -13,29 +13,21 @@ class AnswerGeneratorAgent(BaseAgent):
 
     Architectural Purpose
     ---------------------
-    Converts engineered context into
-    grounded, role-aware natural language responses.
-
-    This agent is responsible for:
-        - answer synthesis
-        - role-aware generation
-        - retrieval-grounded generation
-        - conversation-aware continuity
-        - hallucination reduction
+    Converts engineered orchestration context
+    into grounded, role-aware responses.
 
     Design Principles
     -----------------
-    1. Grounded generation first
-       - Engineered context is preferred over model memory.
+    1. Role-driven generation
+       - Runtime role instruction controls answer behavior.
 
-    2. Role-aware answering
-       - Uses resolved role guidance from context engineering.
+    2. Grounded generation first
+       - Prefer engineered enterprise context when available.
 
-    3. Conversation continuity
-       - Uses recent history when available.
+    3. Source transparency
+       - Prevent false claims about local document grounding.
 
     4. Thin orchestration layer
-       - Prompt execution only.
        - Business state remains in AgentContext.
     """
 
@@ -49,7 +41,7 @@ class AnswerGeneratorAgent(BaseAgent):
         context: AgentContext,
     ) -> AgentContext:
         """
-        Generate final grounded answer.
+        Generate final role-aware response.
         """
 
         prompt = ChatPromptTemplate.from_messages(
@@ -59,23 +51,39 @@ class AnswerGeneratorAgent(BaseAgent):
                     """
 You are an enterprise AI assistant.
 
-Rules:
-- Follow the resolved role guidance from engineered context.
+You must follow the Role Instruction exactly.
+
+Global rules:
 - Use grounded context when available.
 - Use conversation history for continuity.
 - Do not invent facts.
-- If context is missing, clearly say what is missing.
-- Keep answer practical and concise.
+- If local context is missing, clearly avoid claiming it came from local documents.
+- Keep the answer aligned with the resolved role.
 """,
                 ),
                 (
                     "human",
                     """
+Role Instruction:
+{role_instruction}
+
+Requested Role:
+{role}
+
+Resolved Role:
+{resolved_role}
+
 User Query:
 {query}
 
 Refined Query:
 {refined_query}
+
+Answer Mode:
+{answer_mode}
+
+Source Explanation:
+{source_explanation}
 
 Engineered Context:
 {grounded_context}
@@ -88,10 +96,23 @@ Engineered Context:
 
         response = chain.invoke(
             {
+                "role_instruction": (
+                    context.role_instruction
+                    or ""
+                ),
+                "role": context.role,
+                "resolved_role": (
+                    context.resolved_role
+                    or context.role
+                ),
                 "query": context.query,
                 "refined_query": (
                     context.refined_query
                     or context.query
+                ),
+                "answer_mode": context.answer_mode,
+                "source_explanation": (
+                    context.source_explanation
                 ),
                 "grounded_context": (
                     context.grounded_context
@@ -112,9 +133,10 @@ Engineered Context:
             context,
             (
                 "Answer generated. "
-                f"resolved_role={context.resolved_role}, "
-                f"context_present="
-                f"{bool(context.grounded_context)}."
+                f"resolved_role="
+                f"{context.resolved_role}, "
+                f"answer_mode="
+                f"{context.answer_mode}."
             ),
         )
 

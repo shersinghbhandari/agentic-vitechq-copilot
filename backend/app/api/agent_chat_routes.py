@@ -25,24 +25,17 @@ router = APIRouter(
     tags=["Agent Chat"],
 )
 
-# Canonical project root resolution.
-PROJECT_ROOT = (
-    Path(__file__)
-    .resolve()
-    .parents[3]
-)
+
+def get_project_root() -> Path:
+    cwd = Path.cwd()
+
+    if cwd.name == "backend":
+        return cwd.parent
+
+    return cwd
 
 
 def get_db():
-    """
-    Request-scoped database session provider.
-
-    Design Principle
-    ----------------
-    Keeps database lifecycle isolated
-    per HTTP request.
-    """
-
     db = SessionLocal()
 
     try:
@@ -57,17 +50,10 @@ def get_db():
     response_class=HTMLResponse,
 )
 def chat_ui():
-    """
-    Serves lightweight local chat UI.
-
-    Future Direction
-    ----------------
-    Replace with React/Next.js frontend
-    or production static asset hosting.
-    """
+    project_root = get_project_root()
 
     html_path = (
-        PROJECT_ROOT
+        project_root
         / "gui"
         / "agent-chat.html"
     )
@@ -87,19 +73,12 @@ def chat_ui():
 def get_logs(
     lines: int = 200,
 ):
-    """
-    Lightweight runtime log inspection endpoint.
-
-    Architectural Purpose
-    ---------------------
-    Simplifies local debugging and
-    orchestration trace visibility.
-    """
+    project_root = get_project_root()
 
     possible_log_paths = [
-        PROJECT_ROOT / "logs" / "vitechq-rag-trace.log",
-        PROJECT_ROOT / "backend" / "logs" / "vitechq-rag-trace.log",
-        PROJECT_ROOT / "vitechq-rag-trace.log",
+        project_root / "logs" / "vitechq-rag-trace.log",
+        project_root / "backend" / "logs" / "vitechq-rag-trace.log",
+        project_root / "vitechq-rag-trace.log",
     ]
 
     log_path = next(
@@ -137,40 +116,6 @@ def chat(
     request: ChatRequest,
     db: Session = Depends(get_db),
 ) -> ChatResponse:
-    """
-    Agent chat API entrypoint.
-
-    Architectural Purpose
-    ---------------------
-    Bridges external HTTP requests into
-    the LangGraph-based orchestration workflow.
-
-    Flow
-    ----
-    Request
-        -> AgentContext
-        -> ChatGraph
-        -> Agent Orchestration
-        -> ChatResponse
-
-    Design Principles
-    -----------------
-    1. Thin API layer
-       - Request validation and response mapping only.
-
-    2. Trace-first execution
-       - Every request gets correlation tracking.
-
-    3. Role-aware orchestration
-       - Supports runtime persona specialization.
-
-    4. Multi-tenant ready
-       - Tenant/user metadata propagated throughout workflow.
-
-    5. Safe error boundary
-       - Internal failures hidden behind correlation ID.
-    """
-
     if not request.query or not request.query.strip():
         raise HTTPException(
             status_code=400,
@@ -198,25 +143,15 @@ def chat(
             ),
         )
 
-        # Canonical orchestration state object.
         context = AgentContext(
             query=request.query.strip(),
             tenant_id=request.tenant_id,
             uploaded_by=request.uploaded_by,
             correlation_id=correlation_id,
-
-            # User-selected persona/role.
             role=request.role,
-
-            conversation_history=(
-                request.conversation_history
-            ),
-
+            conversation_history=request.conversation_history,
             user_context=request.user_context,
-
-            metadata_context=(
-                request.metadata_context
-            ),
+            metadata_context=request.metadata_context,
         )
 
         graph = ChatGraph(db)
@@ -232,8 +167,8 @@ def chat(
             (
                 "Agent chat completed. "
                 f"source={result.selected_source}, "
-                f"resolved_role="
-                f"{result.resolved_role}, "
+                f"answer_mode={result.answer_mode}, "
+                f"resolved_role={result.resolved_role}, "
                 f"retrieved_context_count="
                 f"{len(retrieved_context)}, "
                 f"validation_status="
@@ -244,77 +179,32 @@ def chat(
         return ChatResponse(
             answer=result.answer or "",
             correlation_id=result.correlation_id,
-
             role=result.role,
-
-            resolved_role=(
-                result.resolved_role
-            ),
-
-            refined_query=(
-                result.refined_query
-            ),
-
+            resolved_role=result.resolved_role,
+            refined_query=result.refined_query,
             intent=result.intent,
             domain=result.domain,
-
             keywords=result.keywords,
             entities=result.entities,
-
-            selected_source=(
-                result.selected_source
-            ),
-
-            retrieval_required=(
-                result.retrieval_required
-            ),
-
-            retrieval_strategy=(
-                result.retrieval_strategy
-            ),
-
-            retrieved_context_count=len(
-                retrieved_context
-            ),
-
-            retrieved_context=(
-                retrieved_context
-            ),
-
-            grounded_context=(
-                result.grounded_context
-            ),
-
-            validation_status=(
-                result.validation_status
-            ),
-
-            validation_errors=(
-                result.validation_errors
-            ),
-
+            selected_source=result.selected_source,
+            answer_mode=result.answer_mode,
+            source_explanation=result.source_explanation,
+            retrieval_required=result.retrieval_required,
+            retrieval_strategy=result.retrieval_strategy,
+            retrieved_context_count=len(retrieved_context),
+            retrieved_context=retrieved_context,
+            grounded_context=result.grounded_context,
+            validation_status=result.validation_status,
+            validation_errors=result.validation_errors,
             token_usage=result.token_usage,
-
             context_engineering_metadata=(
                 result.context_engineering_metadata
             ),
-
-            # Lightweight conversational memory snapshot.
             memory_snapshot=MemorySnapshot(
-                conversation_history=(
-                    request.conversation_history
-                ),
-
-                user_context=(
-                    request.user_context
-                ),
-
-                metadata_context=(
-                    request.metadata_context
-                ),
+                conversation_history=request.conversation_history,
+                user_context=request.user_context,
+                metadata_context=request.metadata_context,
             ),
-
-            # Lightweight orchestration trace.
             trace=result.trace,
         )
 
