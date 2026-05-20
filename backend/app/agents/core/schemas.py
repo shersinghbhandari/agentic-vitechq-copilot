@@ -12,18 +12,19 @@ class ChatRequest(BaseModel):
     Architectural Purpose
     ---------------------
     Defines the stable inbound request schema
-    entering the orchestration layer.
+    entering the orchestration workflow.
 
     Design Principles
     -----------------
-    1. API stability
-       - External clients depend on this contract.
+    1. API contract stability
+       - External clients depend on this schema.
 
     2. Context extensibility
-       - Supports future memory and personalization.
+       - Supports memory, personalization,
+         and future agent coordination.
 
     3. Multi-tenant ready
-       - Tenant and user tracing included.
+       - Tenant-aware orchestration support.
     """
 
     query: str
@@ -31,7 +32,7 @@ class ChatRequest(BaseModel):
     tenant_id: str = "default_tenant"
     uploaded_by: str = "anonymous"
 
-    # Generated if not supplied by caller.
+    # Generated if caller does not provide one.
     correlation_id: str | None = None
 
     # Conversational memory input.
@@ -50,30 +51,68 @@ class ChatRequest(BaseModel):
     )
 
 
+class MemorySnapshot(BaseModel):
+    """
+    Lightweight conversational memory snapshot.
+
+    Architectural Purpose
+    ---------------------
+    Captures memory-related orchestration state
+    returned to clients for debugging, replay,
+    and future persistent memory systems.
+
+    Future Direction
+    ----------------
+    Can evolve into:
+        - episodic memory
+        - semantic memory
+        - session persistence
+        - vector memory integration
+    """
+
+    conversation_history: list[dict[str, str]] = Field(
+        default_factory=list
+    )
+
+    user_context: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+    metadata_context: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+
 class ChatResponse(BaseModel):
     """
     External API response contract for agent chat.
 
     Architectural Purpose
     ---------------------
-    Exposes orchestration output and lightweight
-    observability metadata back to clients.
+    Exposes:
+        - generated response
+        - orchestration metadata
+        - retrieval visibility
+        - validation output
+        - lightweight observability
 
     Design Principles
     -----------------
     1. Debuggable AI workflows
-       - Trace and validation visibility included.
+       - Trace and token visibility included.
 
     2. Retrieval transparency
-       - Source selection and retrieval indicators exposed.
+       - Retrieval decisions and grounding exposed.
 
     3. Future extensible
-       - Supports citations, evaluation,
-         confidence scoring, and tool traces.
+       - Supports citations, confidence scoring,
+         memory systems, and evaluation metadata.
     """
 
+    # Final generated response.
     answer: str | None
 
+    # Distributed tracing identifier.
     correlation_id: str
 
     # Query analysis output.
@@ -90,25 +129,38 @@ class ChatResponse(BaseModel):
     retrieval_required: bool = True
     retrieval_strategy: str = "HYBRID"
 
-    # Lightweight retrieval observability.
+    # Retrieval observability.
     retrieved_context_count: int = 0
 
-    # Validation result metadata.
+    # Raw retrieval chunks.
+    retrieved_context: list[str] = Field(
+        default_factory=list
+    )
+
+    # Final engineered prompt context.
+    grounded_context: str | None = None
+
+    # Validation state.
     validation_status: str = "NOT_VALIDATED"
 
     validation_errors: list[str] = Field(
         default_factory=list
     )
 
-    # Agent-level token usage tracking.
+    # Agent-level LLM usage tracking.
     token_usage: dict[str, dict[str, int]] = Field(
         default_factory=dict
     )
 
-    # Context engineering observability.
+    # Context engineering decisions.
     context_engineering_metadata: dict[str, Any] = Field(
         default_factory=dict
     )
 
-    # Lightweight orchestration execution trace.
+    # Memory and conversational snapshot.
+    memory_snapshot: MemorySnapshot = Field(
+        default_factory=MemorySnapshot
+    )
+
+    # Lightweight orchestration trace.
     trace: list[str] = Field(default_factory=list)

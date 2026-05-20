@@ -1,320 +1,515 @@
+<!-- gui/agent-chat.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <title>Agentic VitechQ Copilot</title>
+    <meta charset="UTF-8">
+    <title>Agentic Chat</title>
 
     <style>
+        /*
+            Architectural Purpose:
+            Lightweight local observability console for agentic chat workflow.
+
+            Design Principle:
+            Keep this UI dependency-free for fast local debugging.
+        */
+
         body {
-            font-family: Arial, sans-serif;
-            background: #f5f7fa;
             margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            padding: 16px 24px;
+            background: #111827;
+            color: white;
         }
 
         .container {
-            width: 920px;
-            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .panel {
             background: white;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
         }
 
-        h1 {
-            margin-top: 0;
-        }
-
-        label {
-            font-weight: bold;
-            display: block;
-            margin-top: 16px;
-        }
-
-        input,
         textarea,
-        select {
+        input {
             width: 100%;
+            box-sizing: border-box;
             padding: 10px;
             margin-top: 6px;
-            border: 1px solid #d1d5db;
+            margin-bottom: 12px;
             border-radius: 6px;
+            border: 1px solid #d1d5db;
             font-size: 14px;
-            box-sizing: border-box;
         }
 
         textarea {
-            height: 110px;
+            min-height: 90px;
         }
 
         button {
-            margin-top: 18px;
-            padding: 10px 18px;
-            background: #2563eb;
-            color: white;
+            padding: 10px 16px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
         }
 
-        .answer {
-            margin-top: 24px;
+        button.secondary {
+            background: #4b5563;
+        }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tab-button {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .tab-button.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 10px;
             padding: 16px;
-            background: #f9fafb;
-            border-left: 4px solid #2563eb;
-            white-space: pre-wrap;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
         }
 
-        .error {
-            border-left-color: #dc2626;
-            color: #991b1b;
-        }
-
-        .meta {
-            margin-top: 16px;
-            font-size: 13px;
-            color: #374151;
-            line-height: 1.7;
-        }
-
-        .pill {
-            display: inline-block;
-            padding: 3px 8px;
-            margin: 2px;
-            background: #eef2ff;
-            border-radius: 999px;
-            font-size: 12px;
-        }
-
-        .section {
-            margin-top: 18px;
-            padding: 12px;
-            background: #f9fafb;
-            border-radius: 8px;
-        }
-
-        .section h3 {
-            margin-top: 0;
+        .tab-content.active {
+            display: block;
         }
 
         pre {
+            white-space: pre-wrap;
+            word-break: break-word;
             background: #111827;
-            color: #f9fafb;
+            color: #e5e7eb;
             padding: 12px;
             border-radius: 8px;
             overflow-x: auto;
-            font-size: 13px;
+        }
+
+        .answer {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .meta-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .meta-card strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .status-valid {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .status-warning {
+            color: #a16207;
+            font-weight: bold;
+        }
+
+        .status-error {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #b91c1c;
+            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
+<header>
+    <h2>Agentic Chat - LangChain + LangGraph</h2>
+</header>
+
 <div class="container">
-    <h1>Agentic VitechQ Copilot</h1>
 
-    <label for="tenantId">Tenant ID</label>
-    <input id="tenantId" value="default_tenant"/>
+    <div class="panel">
+        <label>Tenant ID</label>
+        <input id="tenantId" value="default_tenant">
 
-    <label for="uploadedBy">Uploaded By</label>
-    <input id="uploadedBy" value="sher"/>
+        <label>Uploaded By</label>
+        <input id="uploadedBy" value="sher">
 
-    <label for="responseStyle">Response Style</label>
-    <select id="responseStyle">
-        <option value="ARCHITECT_LEVEL" selected>ARCHITECT_LEVEL</option>
-        <option value="CONCISE">CONCISE</option>
-        <option value="DETAILED">DETAILED</option>
-    </select>
+        <label>User Query</label>
+        <textarea id="query" placeholder="Ask your question..."></textarea>
 
-    <label for="query">Ask your RAG / Agentic system</label>
-    <textarea id="query" placeholder="Example: Explain design patterns used in microservices"></textarea>
+        <label>Conversation History JSON</label>
+        <textarea id="conversationHistory">[]</textarea>
 
-    <button onclick="askAgent()">Ask Agent</button>
+        <label>User Context JSON</label>
+        <textarea id="userContext">{}</textarea>
 
-    <div id="result"></div>
+        <label>Metadata Context JSON</label>
+        <textarea id="metadataContext">{}</textarea>
+
+        <button onclick="sendChat()">Send</button>
+        <button class="secondary" onclick="loadLogs()">Refresh Logs</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-button active" onclick="openTab('answerTab', this)">Answer</button>
+        <button class="tab-button" onclick="openTab('contextTab', this)">Context</button>
+        <button class="tab-button" onclick="openTab('tokenTab', this)">Token Usage</button>
+        <button class="tab-button" onclick="openTab('memoryTab', this)">Memory</button>
+        <button class="tab-button" onclick="openTab('jsonTab', this)">JSON Created</button>
+        <button class="tab-button" onclick="openTab('reasoningTab', this)">How Answer Was Created</button>
+        <button class="tab-button" onclick="openTab('logsTab', this)">Logs</button>
+    </div>
+
+    <div id="answerTab" class="tab-content active">
+        <h3>Answer</h3>
+        <div id="answer" class="answer">No answer yet.</div>
+    </div>
+
+    <div id="contextTab" class="tab-content">
+        <h3>Context Engineering</h3>
+
+        <div class="meta-grid">
+            <div class="meta-card">
+                <strong>Selected Source</strong>
+                <span id="selectedSource">-</span>
+            </div>
+
+            <div class="meta-card">
+                <strong>Retrieved Context Count</strong>
+                <span id="retrievedContextCount">0</span>
+            </div>
+
+            <div class="meta-card">
+                <strong>Validation Status</strong>
+                <span id="validationStatus">-</span>
+            </div>
+        </div>
+
+        <h4>Context Engineering Metadata</h4>
+        <pre id="contextMetadata">{}</pre>
+
+        <h4>Grounded Context</h4>
+        <pre id="groundedContext"></pre>
+
+        <h4>Retrieved Context Chunks</h4>
+        <pre id="retrievedContext"></pre>
+    </div>
+
+    <div id="tokenTab" class="tab-content">
+        <h3>Token Usage</h3>
+
+        <div class="meta-grid">
+            <div class="meta-card">
+                <strong>Total Input Tokens</strong>
+                <span id="totalInputTokens">0</span>
+            </div>
+
+            <div class="meta-card">
+                <strong>Total Output Tokens</strong>
+                <span id="totalOutputTokens">0</span>
+            </div>
+
+            <div class="meta-card">
+                <strong>Total Tokens</strong>
+                <span id="totalTokens">0</span>
+            </div>
+        </div>
+
+        <h4>Per-Agent Token Usage</h4>
+        <pre id="tokenUsage">{}</pre>
+    </div>
+
+    <div id="memoryTab" class="tab-content">
+        <h3>Memory / History Snapshot</h3>
+        <pre id="memorySnapshot">{}</pre>
+    </div>
+
+    <div id="jsonTab" class="tab-content">
+        <h3>Request JSON</h3>
+        <pre id="requestJson">{}</pre>
+
+        <h3>Response JSON</h3>
+        <pre id="responseJson">{}</pre>
+    </div>
+
+    <div id="reasoningTab" class="tab-content">
+        <h3>How We Came To This Answer</h3>
+        <pre id="reasoningTrace"></pre>
+    </div>
+
+    <div id="logsTab" class="tab-content">
+        <h3>Log File</h3>
+        <pre id="logFile">No logs loaded.</pre>
+
+        <h3>Recent Logs</h3>
+        <pre id="logs"></pre>
+    </div>
+
 </div>
 
 <script>
-    const API_BASE_URL = "http://127.0.0.1:8000";
+    /*
+        Architectural Purpose:
+        Browser-side orchestration console for API testing and debugging.
 
-    async function askAgent() {
-        const resultDiv = document.getElementById("result");
+        Future Direction:
+        Replace this with React once backend contracts stabilize.
+    */
+
+    let latestRequest = {};
+    let latestResponse = {};
+
+    function openTab(tabId, button) {
+        const tabs = document.querySelectorAll(".tab-content");
+        const buttons = document.querySelectorAll(".tab-button");
+
+        tabs.forEach(tab => tab.classList.remove("active"));
+        buttons.forEach(btn => btn.classList.remove("active"));
+
+        document.getElementById(tabId).classList.add("active");
+        button.classList.add("active");
+    }
+
+    function safeJsonParse(value, fallback) {
+        if (!value || !value.trim()) {
+            return fallback;
+        }
+
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            alert("Invalid JSON: " + error.message);
+            throw error;
+        }
+    }
+
+    async function sendChat() {
         const query = document.getElementById("query").value.trim();
 
         if (!query) {
-            resultDiv.innerHTML = `
-                <div class="answer error">
-                    Please enter a question.
-                </div>
-            `;
+            alert("Query is required.");
             return;
         }
 
-        const payload = {
+        latestRequest = {
+            query: query,
             tenant_id: document.getElementById("tenantId").value || "default_tenant",
             uploaded_by: document.getElementById("uploadedBy").value || "anonymous",
-            query: query,
-            response_style: document.getElementById("responseStyle").value,
-            conversation_history: [],
-            user_context: {},
-            metadata_context: {}
+            conversation_history: safeJsonParse(
+                document.getElementById("conversationHistory").value,
+                []
+            ),
+            user_context: safeJsonParse(
+                document.getElementById("userContext").value,
+                {}
+            ),
+            metadata_context: safeJsonParse(
+                document.getElementById("metadataContext").value,
+                {}
+            )
         };
 
-        resultDiv.innerHTML = "<div class='answer'>Processing agent workflow...</div>";
+        document.getElementById("requestJson").textContent =
+            JSON.stringify(latestRequest, null, 2);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/agent/chat`, {
+            const response = await fetch("/agent/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(latestRequest)
             });
 
-            const data = await response.json().catch(() => ({}));
-
             if (!response.ok) {
-                throw new Error(data.detail || data.error || "Agent API failed with status " + response.status);
+                const errorText = await response.text();
+                throw new Error(errorText);
             }
 
-            let html = `
-                <div class="answer">
-                    ${escapeHtml(data.answer || data.final_answer || "No answer returned.")}
-                </div>
+            latestResponse = await response.json();
 
-                <div class="meta">
-                    <b>Correlation ID:</b> ${escapeHtml(data.correlation_id || "-")}<br/>
-                    <b>Refined Query:</b> ${escapeHtml(data.refined_query || "-")}<br/>
-                    <b>Intent:</b> ${escapeHtml(data.intent || "-")}<br/>
-                    <b>Domain:</b> ${escapeHtml(data.domain || "-")}<br/>
-                    <b>Retrieval Required:</b> ${escapeHtml(data.retrieval_required ?? "-")}<br/>
-                    <b>Retrieval Strategy:</b> ${escapeHtml(data.retrieval_strategy || "-")}<br/>
-                    <b>Needs Clarification:</b> ${escapeHtml(data.needs_clarification ?? "-")}<br/>
-                    <b>Clarification Question:</b> ${escapeHtml(data.clarification_question || "-")}<br/>
-                    <b>Analyzer Source:</b> ${escapeHtml(data.analyzer_source || "-")}<br/>
-                    <b>Confidence Score:</b> ${escapeHtml(data.confidence_score ?? "-")}
-                </div>
-            `;
-
-            html += renderPills("Keywords", data.keywords);
-            html += renderPills("Entities", data.entities);
-            html += renderObject("Metadata Filters", data.metadata_filters);
-            html += renderObject("User Context", data.user_context);
-            html += renderObject("Metadata Context", data.metadata_context);
-            html += renderList("Errors", data.errors);
-
-            if (data.retrieved_context && data.retrieved_context.length > 0) {
-                html += renderRetrievedContext(data.retrieved_context);
-            }
-
-            if (data.citations && data.citations.length > 0) {
-                html += renderCitations(data.citations);
-            }
-
-            resultDiv.innerHTML = html;
+            renderResponse(latestResponse);
+            await loadLogs();
 
         } catch (error) {
-            resultDiv.innerHTML = `
-                <div class="answer error">
-                    ${escapeHtml(error.message)}
-                </div>
-            `;
+            document.getElementById("answer").innerHTML =
+                "<span class='error'>" + error.message + "</span>";
         }
     }
 
-    function renderPills(title, values) {
-        if (!values || values.length === 0) {
-            return "";
-        }
+    function renderResponse(data) {
+        document.getElementById("answer").textContent =
+            data.answer || "";
 
-        const pills = values
-            .map(value => `<span class="pill">${escapeHtml(value)}</span>`)
-            .join("");
+        document.getElementById("selectedSource").textContent =
+            data.selected_source || "-";
 
-        return `
-            <div class="section">
-                <h3>${escapeHtml(title)}</h3>
-                ${pills}
-            </div>
-        `;
+        document.getElementById("retrievedContextCount").textContent =
+            data.retrieved_context_count ?? 0;
+
+        renderValidationStatus(data.validation_status);
+
+        document.getElementById("contextMetadata").textContent =
+            JSON.stringify(data.context_engineering_metadata || {}, null, 2);
+
+        document.getElementById("groundedContext").textContent =
+            data.grounded_context || "";
+
+        document.getElementById("retrievedContext").textContent =
+            JSON.stringify(data.retrieved_context || [], null, 2);
+
+        document.getElementById("tokenUsage").textContent =
+            JSON.stringify(data.token_usage || {}, null, 2);
+
+        renderTokenTotals(data.token_usage || {});
+
+        document.getElementById("memorySnapshot").textContent =
+            JSON.stringify(data.memory_snapshot || {}, null, 2);
+
+        document.getElementById("responseJson").textContent =
+            JSON.stringify(data, null, 2);
+
+        document.getElementById("reasoningTrace").textContent =
+            buildReasoningTrace(data);
     }
 
-    function renderObject(title, value) {
-        if (!value || Object.keys(value).length === 0) {
-            return "";
+    function renderValidationStatus(status) {
+        const element = document.getElementById("validationStatus");
+        const value = status || "-";
+
+        element.textContent = value;
+        element.className = "";
+
+        if (value === "VALID") {
+            element.classList.add("status-valid");
+            return;
         }
 
-        return `
-            <div class="section">
-                <h3>${escapeHtml(title)}</h3>
-                <pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>
-            </div>
-        `;
-    }
-
-    function renderList(title, values) {
-        if (!values || values.length === 0) {
-            return "";
+        if (value === "NOT_VALIDATED" || value === "WARNING") {
+            element.classList.add("status-warning");
+            return;
         }
 
-        return `
-            <div class="section">
-                <h3>${escapeHtml(title)}</h3>
-                <ul>
-                    ${values.map(value => `<li>${escapeHtml(value)}</li>`).join("")}
-                </ul>
-            </div>
-        `;
+        element.classList.add("status-error");
     }
 
-    function renderRetrievedContext(contextItems) {
-        let html = `
-            <div class="section">
-                <h3>Retrieved Context</h3>
-        `;
+    function renderTokenTotals(tokenUsage) {
+        /*
+            Design Principle:
+            UI computes aggregate token totals without changing API contract.
+        */
 
-        contextItems.forEach((item, index) => {
-            html += `
-                <div class="citation">
-                    <b>${index + 1}.</b>
-                    ${escapeHtml(item.file_name || item.document_name || "Unknown source")}
-                    <pre>${escapeHtml(JSON.stringify(item, null, 2))}</pre>
-                </div>
-            `;
+        let inputTotal = 0;
+        let outputTotal = 0;
+        let total = 0;
+
+        Object.values(tokenUsage).forEach(agentUsage => {
+            inputTotal += agentUsage.input_tokens || 0;
+            outputTotal += agentUsage.output_tokens || 0;
+            total += agentUsage.total_tokens || 0;
         });
 
-        html += "</div>";
-        return html;
+        document.getElementById("totalInputTokens").textContent =
+            inputTotal;
+
+        document.getElementById("totalOutputTokens").textContent =
+            outputTotal;
+
+        document.getElementById("totalTokens").textContent =
+            total;
     }
 
-    function renderCitations(citations) {
-        let html = `
-            <div class="section">
-                <h3>Citations</h3>
-        `;
+    function buildReasoningTrace(data) {
+        const lines = [];
 
-        citations.forEach((citation, index) => {
-            html += `
-                <div class="citation">
-                    <b>${index + 1}.</b>
-                    File: ${escapeHtml(citation.file_name || "-")} |
-                    Document ID: ${escapeHtml(citation.document_id || "-")} |
-                    Chunk ID: ${escapeHtml(citation.chunk_id || "-")} |
-                    Chunk Index: ${escapeHtml(citation.chunk_index ?? "-")}
-                </div>
-            `;
+        lines.push("1. User query received:");
+        lines.push(data.refined_query || latestRequest.query || "");
+        lines.push("");
+
+        lines.push("2. Query analysis:");
+        lines.push("Intent: " + (data.intent || "-"));
+        lines.push("Domain: " + (data.domain || "-"));
+        lines.push("Keywords: " + JSON.stringify(data.keywords || []));
+        lines.push("Entities: " + JSON.stringify(data.entities || []));
+        lines.push("");
+
+        lines.push("3. Source routing:");
+        lines.push("Selected Source: " + (data.selected_source || "-"));
+        lines.push("Retrieval Required: " + data.retrieval_required);
+        lines.push("Retrieval Strategy: " + data.retrieval_strategy);
+        lines.push("");
+
+        lines.push("4. Context engineering:");
+        lines.push(JSON.stringify(data.context_engineering_metadata || {}, null, 2));
+        lines.push("");
+
+        lines.push("5. Validation:");
+        lines.push("Status: " + (data.validation_status || "-"));
+        lines.push("Errors: " + JSON.stringify(data.validation_errors || []));
+        lines.push("");
+
+        lines.push("6. Agent trace:");
+
+        (data.trace || []).forEach(item => {
+            lines.push("- " + item);
         });
 
-        html += "</div>";
-        return html;
+        return lines.join("\n");
     }
 
-    function escapeHtml(value) {
-        return String(value)
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
+    async function loadLogs() {
+        try {
+            const response = await fetch("/agent/logs?lines=200");
+            const data = await response.json();
+
+            document.getElementById("logFile").textContent =
+                data.log_file || data.message || "No log file found.";
+
+            document.getElementById("logs").textContent =
+                (data.lines || []).join("\n");
+
+        } catch (error) {
+            document.getElementById("logs").textContent =
+                "Unable to load logs: " + error.message;
+        }
     }
+
+    loadLogs();
 </script>
+
 </body>
 </html>
